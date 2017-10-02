@@ -20,10 +20,6 @@ import (
     "github.com/disintegration/imaging"
 )
 
-
-//var graph *tf.Graph
-//var session *tf.Session
-
 type TFResult struct {
     Label string
     Score  float32
@@ -33,7 +29,6 @@ type TFResult struct {
 
 type Predictor interface {
     Load(modelPath string, labelPath string) error
-    //Predict(imageFilename string) (TFResult, error)
     Predict(file multipart.File) (TFResult, error)
     Close()
 }
@@ -117,42 +112,6 @@ func (p *TensorflowPredictor) Predict(file multipart.File) (TFResult, error){
 	return res, nil
 }
 
-/*func (p *TensorflowPredictor) Predict(imageFilename string) (TFResult, error){
-	var res TFResult
-	res.Label = "";
-	res.Score = 0;
-	// For multiple images, session.Run() can be called in a loop (and
-	// concurrently). Furthermore, images can be batched together since the
-	// model accepts batches of image data as input.
-	tensor, err := makeTensorFromImage(imageFilename)
-	if err != nil {
-		log.Debug("[Predicting Image Label] Couldn't create tensor from image: ", err.Error())
-		return res, err
-	}
-	output, err := p.session.Run(
-		map[tf.Output]*tf.Tensor{
-			//graph.Operation("input").Output(0): tensor,
-			p.graph.Operation("Mul").Output(0): tensor,
-		},
-		[]tf.Output{
-			//graph.Operation("output").Output(0),
-			p.graph.Operation("final_result").Output(0),
-			
-		},
-		nil)
-	if err != nil {
-		log.Debug("[Predicting Image Label] Couldn't run image prediction: ", err.Error())
-		return res, err
-	}
-
-	// output[0].Value() is a vector containing probabilities of
-	// labels for each image in the "batch". The batch size was 1.
-	// Find the most probably label index.
-	probabilities := output[0].Value().([][]float32)[0]
-	res = getBestLabel(probabilities, p.labels)
-	return res, nil
-}*/
-
 func (p *TensorflowPredictor) Close(){
 	p.session.Close()
 }
@@ -192,56 +151,6 @@ func getBestLabel(probabilities []float32, labels []string) TFResult{
 
 	return result
 } 
-
-
-/*// Given an image stored in filename, returns a Tensor which is suitable for
-// providing the image data to the pre-defined model.
-func makeTensorFromImage(filename string) (*tf.Tensor, error) {
-	const (
-		// Some constants specific to the pre-trained model. 
-		// - The model was trained with images scaled to 299x299 pixels.
-		// - Mean = 128 
-		// - Std = 128
-		//
-		// All values taken from retrain.py
-		// If using a different model, the values will have to be adjusted.
-		H, W = 299, 299
-		Mean = 128
-		Std  = 128
-	)
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	img, _, err := image.Decode(file)
-	if err != nil {
-		return nil, err
-	}
-	sz := img.Bounds().Size()
-	if sz.X != W || sz.Y != H {
-		return nil, fmt.Errorf("input image is required to be %dx%d pixels, was %dx%d", W, H, sz.X, sz.Y)
-	}
-	// 4-dimensional input:
-	// - 1st dimension: Batch size (the model takes a batch of images as
-	//                  input, here the "batch size" is 1)
-	// - 2nd dimension: Rows of the image
-	// - 3rd dimension: Columns of the row
-	// - 4th dimension: Colors of the pixel as (B, G, R)
-	// Thus, the shape is [1, 299, 299, 3]
-	var ret [1][H][W][3]float32
-	for y := 0; y < H; y++ {
-		for x := 0; x < W; x++ {
-			px := x + img.Bounds().Min.X
-			py := y + img.Bounds().Min.Y
-			r, g, b, _ := img.At(px, py).RGBA()
-			ret[0][y][x][0] = float32((int(b>>8) - Mean)) / Std
-			ret[0][y][x][1] = float32((int(g>>8) - Mean)) / Std
-			ret[0][y][x][2] = float32((int(r>>8) - Mean)) / Std
-		}
-	}
-	return tf.NewTensor(ret)
-}*/
 
 // Given an image, returns a Tensor which is suitable for
 // providing the image data to the pre-defined model.
@@ -298,51 +207,12 @@ func makeTensorFromImage(file multipart.File) (*tf.Tensor, error) {
 	return tf.NewTensor(ret)
 }
 
-/*func predict(imageFilename string, labels []string) (TFResult, error){
-	var res TFResult
-	res.Label = "";
-	res.Score = 0;
-	// For multiple images, session.Run() can be called in a loop (and
-	// concurrently). Furthermore, images can be batched together since the
-	// model accepts batches of image data as input.
-	tensor, err := makeTensorFromImage(imageFilename)
-	if err != nil {
-		log.Debug("[Predicting Image Label] Couldn't create tensor from image: ", err.Error())
-		return res, err
-	}
-	output, err := session.Run(
-		map[tf.Output]*tf.Tensor{
-			//graph.Operation("input").Output(0): tensor,
-			graph.Operation("Mul").Output(0): tensor,
-		},
-		[]tf.Output{
-			//graph.Operation("output").Output(0),
-			graph.Operation("final_result").Output(0),
-			
-		},
-		nil)
-	if err != nil {
-		log.Debug("[Predicting Image Label] Couldn't run image prediction: ", err.Error())
-		return res, err
-	}
-
-	// output[0].Value() is a vector containing probabilities of
-	// labels for each image in the "batch". The batch size was 1.
-	// Find the most probably label index.
-	probabilities := output[0].Value().([][]float32)[0]
-	res = getBestLabel(probabilities, labels)
-	return res, nil
-}*/
-
 func predictLabel(file multipart.File) pool.WorkFunc {
 
 	const (
 		// Path to the pre-trained model and the labels file
 		modelFile  = "/home/playground/training/models/graph.pb"
 		labelsPath = "/home/playground/training/models/labels.txt"
-
-		// Image file to "recognize".
-		//testImageFilename = "/home/playground/cat5.jpg"
 	)
 	predictor := NewTensorflowPredictor()
 	predictor.Load(modelFile, labelsPath)
@@ -360,15 +230,6 @@ func predictLabel(file multipart.File) pool.WorkFunc {
 	}
 }
 
-
-/*func preflight(c *gin.Context) {
-    c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-        //c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-    c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With, X-PINGOTHER, X-File-Name, Cache-Control")
-    c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
-    c.JSON(http.StatusOK, struct{}{})
-}*/
-
 func main() {
 	log.SetLevel(log.DebugLevel)
 
@@ -383,70 +244,10 @@ func main() {
 	workerPool := pool.NewLimited(10)
 	defer workerPool.Close()
 
-	/*prediction := workerPool.Queue(predictLabel())
-	prediction.Wait()
-	if err := prediction.Error(); err != nil {
-		// handle error
-	}
-	res := prediction.Value().(TFResult)
-	fmt.Println(res.Label)
-
-	const (
-		// Path to the pre-trained model and the labels file
-		modelFile  = "/home/playground/training/models/output_graph.pb"
-		labelsPath = "/home/playground/training/models/output_labels.txt"
-
-		// Image file to "recognize".
-		testImageFilename = "/home/playground/cat5.jpg"
-	)*/
-
-	/*predictor := NewTensorflowPredictor()
-	predictor.Load(modelFile, labelsPath)
-	res,_ := predictor.Predict(testImageFilename)
-	fmt.Printf("res = %s\n", res.Label)*/
-
-    /*const (
-		// Path to the pre-trained model and the labels file
-		modelFile  = "/home/playground/training/models/output_graph.pb"
-		labelsPath = "/home/playground/training/models/output_labels.txt"
-
-		// Image file to "recognize".
-		testImageFilename = "/home/playground/cat5.jpg"
-	)
-
-	labels, err := loadLabels(labelsPath)
-	if err != nil {
-		log.Debug("[Main] Couldn't get labels: ", err.Error())
-		os.Exit(1)
-	}
-
-	// Load the serialized GraphDef from a file.
-	model, err := ioutil.ReadFile(modelFile)
-	if err != nil {
-		log.Debug("[Main] Couldn't read model: ", err.Error())
-		os.Exit(1)
-	}
-
-	// Construct an in-memory graph from the serialized form.
-	graph = tf.NewGraph()
-	if err := graph.Import(model, ""); err != nil {
-		log.Debug("[Main] Couldn't construct graph: ", err.Error())
-		os.Exit(1)
-	}
-
-	// Create a session for inference over graph.
-	session, err = tf.NewSession(graph, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer session.Close()*/
-
-
 	router := gin.Default()
 
 	router.OPTIONS("/v1/predict", func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-        //c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 	    c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With, X-PINGOTHER, X-File-Name, Cache-Control")
 	    c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
 	    c.JSON(http.StatusOK, struct{}{})
@@ -454,9 +255,9 @@ func main() {
 
 	router.POST("/v1/predict", func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-        //c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 	    c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With, X-PINGOTHER, X-File-Name, Cache-Control")
 	    c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
+
 		file, _, err := c.Request.FormFile("image")
 		if(err != nil){
 			fmt.Printf("err = %s", err.Error())
@@ -473,17 +274,6 @@ func main() {
 		}
 		res := prediction.Value().(TFResult)
 		c.JSON(http.StatusOK, gin.H{"label": res.Label, "score": res.Score})
-
-
-		/*
-		res, err := predict(testImageFilename, labels)
-		if err != nil{
-			log.Debug("done")
-			c.JSON(http.StatusOK, gin.H{"label": res.Label, "score": res.Score})
-		} else {
-			log.Debug("err = ", err.Error())
-		}*/
-		
 	})
 
 
