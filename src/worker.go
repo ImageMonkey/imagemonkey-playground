@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	log "github.com/sirupsen/logrus"
+	"os"
 )
 
 // Job holds the attributes needed to perform unit of work.
@@ -61,6 +62,11 @@ func (w Worker) start() {
 						_, err = redisConn.Do("SET", ("predict" + job.PredictionRequest.Uuid), serialized)
 						if err != nil {
 							log.Debug("[Worker] Couldn't set marshal result: %s", err.Error())
+						} else { //successfully predicted, remove file
+							err = os.Remove(job.PredictionRequest.Filename)
+							if err != nil {
+								log.Debug("[Worker] Couldn't remove file %s", err.Error())
+							}
 						}
 					}
 				} else {
