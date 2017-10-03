@@ -11,19 +11,13 @@ import (
 	log "github.com/sirupsen/logrus"
 	"os"
     tf "github.com/tensorflow/tensorflow/tensorflow/go"
-    //"time"
-    "net/http"
-    "github.com/gin-gonic/gin"
-    "gopkg.in/go-playground/pool.v3"
-    "flag"
     "mime/multipart"
     "github.com/disintegration/imaging"
+    "flag"
+    "github.com/garyburd/redigo/redis"
+    "encoding/json"
+    "time"
 )
-
-type TFResult struct {
-    Label string
-    Score  float32
-}
 
  	
 
@@ -76,7 +70,7 @@ func (p *TensorflowPredictor) Load(modelPath string, labelPath string) error{
 }
 
 
-func (p *TensorflowPredictor) Predict(file multipart.File) (TFResult, error){
+func (p *TensorflowPredictor) Predict(file string) (TFResult, error){
 	var res TFResult
 	res.Label = "";
 	res.Score = 0;
@@ -154,7 +148,7 @@ func getBestLabel(probabilities []float32, labels []string) TFResult{
 
 // Given an image, returns a Tensor which is suitable for
 // providing the image data to the pre-defined model.
-func makeTensorFromImage(file multipart.File) (*tf.Tensor, error) {
+func makeTensorFromImage(file string) (*tf.Tensor, error) {
 	const (
 		// Some constants specific to the pre-trained model. 
 		// - The model was trained with images scaled to 299x299 pixels.
@@ -168,7 +162,13 @@ func makeTensorFromImage(file multipart.File) (*tf.Tensor, error) {
 		Std  = 128
 	)
 
-	img, _, err := image.Decode(file)
+	f, err := os.Open(file)
+    if err != nil {
+        panic(err.Error())
+    }
+    defer f.Close()
+
+	img, _, err := image.Decode(f)
 	if err != nil {
 		return nil, err
 	}
@@ -207,77 +207,68 @@ func makeTensorFromImage(file multipart.File) (*tf.Tensor, error) {
 	return tf.NewTensor(ret)
 }
 
-func predictLabel(file multipart.File) pool.WorkFunc {
-
-	const (
-		// Path to the pre-trained model and the labels file
-		modelFile  = "/home/playground/training/models/graph.pb"
-		labelsPath = "/home/playground/training/models/labels.txt"
-	)
-	predictor := NewTensorflowPredictor()
-	predictor.Load(modelFile, labelsPath)
-
-
-	return func(wu pool.WorkUnit) (interface{}, error) {
-		res, err := predictor.Predict(file)
-
-		if wu.IsCancelled() {
-			// return values not used
-			return nil, nil
-		}
-
-		return res, err
-	}
-}
+var redisPool *redis.Pool
 
 func main() {
 	log.SetLevel(log.DebugLevel)
 
-	releaseMode := flag.Bool("release", false, "Run in release mode")
+	log.Debug("[Main] Starting Playground Worker...")
+	redisAddress := flag.String("redis-address", ":6379", "Address to the Redis server")
+	redisMaxConnections := flag.Int("redis-max-connections", 10, "Max connections to Redis")
+	maxWorkerQueueSize := flag.Int("max-worker-queue-size", 100, "The size of job queue")
+	maxWorkers := flag.Int("max-workers", 5, "The number of workers to start")
 
 	flag.Parse()
-	if(*releaseMode){
-		fmt.Printf("Starting gin in release mode!\n")
-		gin.SetMode(gin.ReleaseMode)
+
+	log.Debug("[Main] Starting ThreadPool...")
+
+	redisPool = redis.NewPool(func() (redis.Conn, error) {
+		c, err := redis.Dial("tcp", *redisAddress)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return c, err
+	}, *redisMaxConnections)
+	defer redisPool.Close()
+
+	log.Debug("[Main] Starting Dispatcher...")
+
+	jobQueue := make(chan Job, *maxWorkerQueueSize)
+
+	dispatcher := NewDispatcher(jobQueue, *maxWorkers)
+	dispatcher.run()
+
+
+	for{
+		var data []byte
+
+		redisConn := redisPool.Get()
+
+    	data, err := redis.Bytes(redisConn.Do("LPOP", "predictme"))
+    	if err != nil {
+    		//log.Debug("[Main] Couldn't pop from queue : ", err.Error())
+    		redisConn.Close()
+    		time.Sleep(time.Second) //nothing in queue, sleep for one sec
+    		continue
+    	}
+
+    	log.Debug("[Main] Got a new request to process")
+
+    	var predictionRequest PredictionRequest
+    	err = json.Unmarshal(data, &predictionRequest)
+    	if err != nil{
+    		log.Debug("[Main] Couldn't unmarshal: ", err.Error())
+    		redisConn.Close()
+			continue
+    	}
+
+    	work := Job{PredictionRequest: predictionRequest}
+    	jobQueue <- work
+
+    	redisConn.Close()
 	}
 
-	workerPool := pool.NewLimited(10)
-	defer workerPool.Close()
 
-	router := gin.Default()
-
-	router.OPTIONS("/v1/predict", func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-	    c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With, X-PINGOTHER, X-File-Name, Cache-Control")
-	    c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
-	    c.JSON(http.StatusOK, struct{}{})
-	})
-
-	router.POST("/v1/predict", func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-	    c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With, X-PINGOTHER, X-File-Name, Cache-Control")
-	    c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
-
-		file, _, err := c.Request.FormFile("image")
-		if(err != nil){
-			fmt.Printf("err = %s", err.Error())
-			c.JSON(400, gin.H{"error": "Picture is missing"})
-			return
-		}
-
-		prediction := workerPool.Queue(predictLabel(file))
-		prediction.Wait()
-		if err := prediction.Error(); err != nil {
-			log.Debug("[Predicting] Couldn't process request: ", err.Error())
-			c.JSON(500, gin.H{"error": "Couldn't process - please try again later"})
-			return
-		}
-		res := prediction.Value().(TFResult)
-		c.JSON(http.StatusOK, gin.H{"label": res.Label, "score": res.Score})
-	})
-
-
-	router.Run(":8080")
-
-	
 }
