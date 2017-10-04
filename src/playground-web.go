@@ -95,7 +95,7 @@ func main() {
 			return
 		}
 
-		_, err = redisConn.Do("LPUSH", "predictme", serialized)
+		_, err = redisConn.Do("RPUSH", "predictme", serialized)
 		if err != nil {
 			log.Debug("[Predicting] Couldn't accept request: ", err.Error())
 			c.JSON(500, gin.H{"error": "Couldn't accept request - please try again later"})

@@ -52,14 +52,15 @@ func (w Worker) start() {
 
 					var predictionResult PredictionResult
 					predictionResult.Uuid = job.PredictionRequest.Uuid
-					predictionResult.Processed = true
 					predictionResult.Result = tfResult
 
 					serialized, err := json.Marshal(predictionResult)
 					if err != nil{
 						log.Debug("[Worker] Couldn't marshal prediction result: %s", err.Error())
 					} else {
-						_, err = redisConn.Do("SET", ("predict" + job.PredictionRequest.Uuid), serialized)
+						//store result with an expiration time of 1hr...it doesn't make sense to store it longer
+						//than that.
+						_, err = redisConn.Do("SETX", ("predict" + job.PredictionRequest.Uuid), serialized, 3600)
 						if err != nil {
 							log.Debug("[Worker] Couldn't set marshal result: %s", err.Error())
 						} else { //successfully predicted, remove file

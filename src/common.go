@@ -13,6 +13,5 @@ type PredictionRequest struct {
 
 type PredictionResult struct {
     Uuid string `json:"uuid"`
-    Processed bool `json:"processed"`
     Result TFResult `json:"result"`
 }
