@@ -77,7 +77,6 @@ func main() {
 
 		uuid := uuid.NewV4().String()
 		c.SaveUploadedFile(header, (*predictionsDir + uuid))
-		fmt.Printf("UUID = %s\n", uuid)
 
 		redisConn := redisPool.Get()
 		defer redisConn.Close()
@@ -147,7 +146,8 @@ func main() {
 			return	
     	}
 
-    	c.JSON(http.StatusOK, gin.H{"label": predictionResult.Result.Label, "score": predictionResult.Result.Score})
+    	c.JSON(http.StatusOK, gin.H{"label": predictionResult.Result.Label, "score": predictionResult.Result.Score, 
+    								"model_info": predictionResult.ModelInfo})
 	})
 
 

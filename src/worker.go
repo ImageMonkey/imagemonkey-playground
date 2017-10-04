@@ -30,13 +30,13 @@ type Worker struct {
 
 func (w Worker) start() {
 	log.Debug("[Worker] Worker %d starting", w.id)
-	const (
+	//const (
 		// Path to the pre-trained model and the labels file
-		modelFile  = "/home/playground/training/models/graph.pb"
-		labelsPath = "/home/playground/training/models/labels.txt"
-	)
+	//	modelFile  = "/home/playground/training/models/graph.pb"
+	//	labelsPath = "/home/playground/training/models/labels.txt"
+	//)
 	predictor := NewTensorflowPredictor()
-	predictor.Load(modelFile, labelsPath)
+	predictor.Load("/home/playground/training/models/")
 
 	go func() {
 		for {
@@ -53,6 +53,7 @@ func (w Worker) start() {
 					var predictionResult PredictionResult
 					predictionResult.Uuid = job.PredictionRequest.Uuid
 					predictionResult.Result = tfResult
+					predictionResult.ModelInfo = predictor.modelInfo
 
 					serialized, err := json.Marshal(predictionResult)
 					if err != nil{
@@ -60,7 +61,7 @@ func (w Worker) start() {
 					} else {
 						//store result with an expiration time of 1hr...it doesn't make sense to store it longer
 						//than that.
-						_, err = redisConn.Do("SETX", ("predict" + job.PredictionRequest.Uuid), serialized, 3600)
+						_, err = redisConn.Do("SETEX", ("predict" + job.PredictionRequest.Uuid), 3600, serialized)
 						if err != nil {
 							log.Debug("[Worker] Couldn't set marshal result: %s", err.Error())
 						} else { //successfully predicted, remove file

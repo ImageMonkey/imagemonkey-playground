@@ -31,14 +31,32 @@ type TensorflowPredictor struct {
     labels []string
     graph *tf.Graph
     session *tf.Session
+    modelInfo ModelInfo
 }
 
 func NewTensorflowPredictor() *TensorflowPredictor {
     return &TensorflowPredictor{} 
 }
 
-func (p *TensorflowPredictor) Load(modelPath string, labelPath string) error{
-	labels, err := loadLabels(labelPath)
+func (p *TensorflowPredictor) Load(basePath string) error{
+	//read model info file
+	modelInfoFile, err := ioutil.ReadFile((basePath + "model_info.json"))
+    if err != nil {
+        log.Debug("[Main] Couldn't read model info: ", err.Error())
+        return err
+	}
+
+	var modelInfo ModelInfo
+	err = json.Unmarshal(modelInfoFile, &modelInfo)
+	if err != nil {
+		log.Debug("[Main] Couldn't parse model info: ", err.Error())
+		return err
+	}
+	p.modelInfo = modelInfo
+
+
+	//read labels file
+	labels, err := loadLabels((basePath + "labels.txt"))
 	if err != nil {
 		log.Debug("[Main] Couldn't get labels: ", err.Error())
 		return err
@@ -46,7 +64,7 @@ func (p *TensorflowPredictor) Load(modelPath string, labelPath string) error{
 	p.labels = labels
 
     // Load the serialized GraphDef from a file.
-	model, err := ioutil.ReadFile(modelPath)
+	model, err := ioutil.ReadFile((basePath + "graph.pb"))
 	if err != nil {
 		log.Debug("[Main] Couldn't read model: ", err.Error())
 		return err

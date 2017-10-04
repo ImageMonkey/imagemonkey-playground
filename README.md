@@ -40,3 +40,6 @@ iptables -A OUTPUT -o lo -j ACCEPT
 
 
 
+* intall supervisorctl 
+* use `visudo` and add the following entry `playground ALL = (root) NOPASSWD:/usr/bin/supervisorctl restart all` after the line `%sudo   ALL=(ALL:ALL) ALL` to restart supervisord controlled processes with sudo as non-root user
+
