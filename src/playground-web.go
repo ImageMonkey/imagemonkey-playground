@@ -19,7 +19,7 @@ func main() {
 
 	releaseMode := flag.Bool("release", false, "Run in release mode")
 	redisAddress := flag.String("redis-address", ":6379", "Address to the Redis server")
-	redisMaxConnections := flag.Int("redis-max-connections", 1, "Max connections to Redis")
+	redisMaxConnections := flag.Int("redis-max-connections", 50, "Max connections to Redis")
 	predictionsDir := flag.String("predictions-dir", "../predictions/", "Location of the temporary saved images for predictions")
 
 	flag.Parse()

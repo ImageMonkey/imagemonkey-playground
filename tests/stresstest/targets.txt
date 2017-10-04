@@ -1,4 +1,4 @@
 POST https://playground.imagemonkey.io/v1/predict
 Host: playground.imagemonkey.io
-Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryAN6381aBFJDEyoxE
-@still-bits2.req
+Content-Type: multipart/form-data; boundary=Boundary+0xAbCdEfGbOuNdArY
+@img.req

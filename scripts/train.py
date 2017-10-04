@@ -105,7 +105,7 @@ def trainModel():
 	return True
 
 def restartProcesses():
-	p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
+	p = subprocess.Popen("sudo supervisorctl restart all", stdout=subprocess.PIPE, shell=True)
 	out, err = p.communicate()
 	if p.returncode != 0:
 		return False
