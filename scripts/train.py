@@ -352,7 +352,7 @@ if __name__ == "__main__":
 	#ERROR: might be related to the fact that we are not writing the classes right. (see line 180). we need to write class names according to the label mapping
 
 
-	"""if not trainModel():
+	if not trainModel():
 		print "Couldn't train model"
 		sys.exit(1)
 
@@ -366,7 +366,7 @@ if __name__ == "__main__":
 		sys.exit(1)
 
 	print "Successfully trained model"
-	"""
+	
 
 
 
