@@ -29,7 +29,7 @@ type Worker struct {
 }
 
 func (w Worker) start() {
-	log.Debug("[Worker] Worker %d starting", w.id)
+	log.Debug("[Worker] Worker ", w.id, " starting")
 	//const (
 		// Path to the pre-trained model and the labels file
 	//	modelFile  = "/home/playground/training/models/graph.pb"
@@ -57,29 +57,29 @@ func (w Worker) start() {
 
 					serialized, err := json.Marshal(predictionResult)
 					if err != nil{
-						log.Debug("[Worker] Couldn't marshal prediction result: %s", err.Error())
+						log.Debug("[Worker] Couldn't marshal prediction result: ", err.Error())
 					} else {
 						//store result with an expiration time of 1hr...it doesn't make sense to store it longer
 						//than that.
 						_, err = redisConn.Do("SETEX", ("predict" + job.PredictionRequest.Uuid), 3600, serialized)
 						if err != nil {
-							log.Debug("[Worker] Couldn't set marshal result: %s", err.Error())
+							log.Debug("[Worker] Couldn't set marshal result: ", err.Error())
 						} else { //successfully predicted, remove file
 							err = os.Remove(job.PredictionRequest.Filename)
 							if err != nil {
-								log.Debug("[Worker] Couldn't remove file %s", err.Error())
+								log.Debug("[Worker] Couldn't remove file ", err.Error())
 							}
 						}
 					}
 				} else {
-					log.Debug("[Worker] Couln't predict: %s", err.Error())
+					log.Debug("[Worker] Couln't predict: ", err.Error())
 				}
 
 				
 
 			case <-w.quitChan:
 				// We have been asked to stop.
-				log.Debug("[Worker] Worker %d stopping", w.id)
+				log.Debug("[Worker] Worker ", w.id, " stopping")
 				return
 			}
 		}

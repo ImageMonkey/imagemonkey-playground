@@ -70,7 +70,6 @@ func main() {
 
 	    _, header, err := c.Request.FormFile("image")
 		if(err != nil){
-			fmt.Printf("err = %s", err.Error())
 			c.JSON(400, gin.H{"error": "Picture is missing"})
 			return
 		}
