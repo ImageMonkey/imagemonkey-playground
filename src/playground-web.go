@@ -68,6 +68,8 @@ func main() {
 	    c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
 	    c.Writer.Header().Set("Access-Control-Expose-Headers" ,"Location")
 
+	    classificationType := c.PostForm("classification_type")
+
 	    _, header, err := c.Request.FormFile("image")
 		if(err != nil){
 			c.JSON(400, gin.H{"error": "Picture is missing"})
@@ -85,6 +87,12 @@ func main() {
 		predictionRequest.Uuid = uuid
 		predictionRequest.Created = int64(time.Now().Unix())
 		predictionRequest.Filename = (*predictionsDir + uuid)
+
+		if classificationType == "nsfw" {
+			predictionRequest.Type = "nsfw-classification"
+		} else {
+			predictionRequest.Type = "classification"
+		}
 
 		serialized, err := json.Marshal(predictionRequest)
 		if err != nil {

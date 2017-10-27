@@ -235,6 +235,7 @@ func main() {
 	redisMaxConnections := flag.Int("redis-max-connections", 10, "Max connections to Redis")
 	maxWorkerQueueSize := flag.Int("max-worker-queue-size", 100, "The size of job queue")
 	maxWorkers := flag.Int("max-workers", 5, "The number of workers to start")
+	maxWorkersNSFW := flag.Int("max-workers-nsfw", 3, "The number of workers that operate on the NSFW model")
 
 	flag.Parse()
 
@@ -254,9 +255,13 @@ func main() {
 	log.Debug("[Main] Starting Dispatcher...")
 
 	jobQueue := make(chan Job, *maxWorkerQueueSize)
-
-	dispatcher := NewDispatcher(jobQueue, *maxWorkers)
+	dispatcher := NewDispatcher(jobQueue, *maxWorkers, "/home/playground/training/models/")
 	dispatcher.run()
+
+	//NSFW job queue
+	nsfwJobQueue := make(chan Job, *maxWorkerQueueSize)
+	nsfwDispatcher := NewDispatcher(nsfwJobQueue, *maxWorkersNSFW, "/home/playground/training/models/nsfw/")
+	nsfwDispatcher.run()
 
 
 	for{
@@ -266,7 +271,6 @@ func main() {
 
     	data, err := redis.Bytes(redisConn.Do("LPOP", "predictme"))
     	if err != nil {
-    		//log.Debug("[Main] Couldn't pop from queue : ", err.Error())
     		redisConn.Close()
     		time.Sleep(time.Second) //nothing in queue, sleep for one sec
     		continue
@@ -283,7 +287,13 @@ func main() {
     	}
 
     	work := Job{PredictionRequest: predictionRequest}
-    	jobQueue <- work
+    	if predictionRequest.Type == "classification" {
+	    	jobQueue <- work
+	    } else if predictionRequest.Type == "nsfw-classification" {
+	    	nsfwJobQueue <- work
+	    } else {
+	    	log.Debug("[Main] Invalid classification type: ", predictionRequest.Type)
+	    }
 
     	redisConn.Close()
 	}

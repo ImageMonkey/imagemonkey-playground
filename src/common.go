@@ -16,6 +16,7 @@ type PredictionRequest struct {
 	Uuid string `json:"uuid"`
     Filename string `json:"filename"`
     Created int64 `json:"created"`
+    Type string `json:"type"`
 }
 
 type PredictionResult struct {

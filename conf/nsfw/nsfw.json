@@ -1,0 +1,59 @@
+{
+	"videos": {
+		"nsfw": [
+			{
+				"url": "https://de.pornhub.com/view_video.php?viewkey=ph59e68398c4a45"
+			},
+			{
+				"url": "https://de.pornhub.com/view_video.php?viewkey=ph59878cbf5dd9a"
+			},
+			{
+				"url": "https://de.pornhub.com/view_video.php?viewkey=ph56d0ef3363144"
+			},
+			{
+				"url": "https://de.pornhub.com/view_video.php?viewkey=ph57edb917b39b7"
+			},
+			{
+				"url": "https://de.pornhub.com/view_video.php?viewkey=1396332978"
+			},
+			{
+				"url": "https://de.pornhub.com/view_video.php?viewkey=ph594b7585e9aba"
+			},
+			{
+				"url": "https://de.pornhub.com/view_video.php?viewkey=163571790"
+			},
+			{
+				"url": "https://de.pornhub.com/view_video.php?viewkey=ph5929e089c6604"
+			},
+			{
+				"url": "https://de.pornhub.com/view_video.php?viewkey=ph596c19bf1ebda"
+			},
+			{
+				"url": "https://de.pornhub.com/view_video.php?viewkey=ph57cd27433adc3"
+			},
+			{
+				"url": "https://de.pornhub.com/view_video.php?viewkey=ph59949e97795f9"
+			}
+		],
+		"sfw": [{
+				"url": "https://www.youtube.com/watch?v=SBjQ9tuuTJQ"
+			},
+			{
+				"url": "https://www.youtube.com/watch?v=lzWLsyTqnhk"
+			},
+			{
+				"url": "https://www.youtube.com/watch?v=DcqJvYF1ewA"
+			},
+			{
+				"url": "https://www.youtube.com/watch?v=ZKAQPN1DdOo"
+			}
+		]
+	},
+	"datasets": {
+		"sfw": [
+			{
+				"url": ""
+			}
+		]
+	}
+}

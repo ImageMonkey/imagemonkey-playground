@@ -12,12 +12,13 @@ type Job struct {
 }
 
 // NewWorker creates takes a numeric id and a channel w/ worker pool.
-func NewWorker(id int, workerPool chan chan Job) Worker {
+func NewWorker(id int, workerPool chan chan Job, modelDir string) Worker {
 	return Worker{
 		id:         id,
 		jobQueue:   make(chan Job),
 		workerPool: workerPool,
 		quitChan:   make(chan bool),
+		modelDir:   modelDir,
 	}
 }
 
@@ -26,17 +27,13 @@ type Worker struct {
 	jobQueue   chan Job
 	workerPool chan chan Job
 	quitChan   chan bool
+	modelDir   string
 }
 
 func (w Worker) start() {
 	log.Debug("[Worker] Worker ", w.id, " starting")
-	//const (
-		// Path to the pre-trained model and the labels file
-	//	modelFile  = "/home/playground/training/models/graph.pb"
-	//	labelsPath = "/home/playground/training/models/labels.txt"
-	//)
 	predictor := NewTensorflowPredictor()
-	predictor.Load("/home/playground/training/models/")
+	predictor.Load(w.modelDir)
 
 	go func() {
 		for {
@@ -93,25 +90,27 @@ func (w Worker) stop() {
 }
 
 // NewDispatcher creates, and returns a new Dispatcher object.
-func NewDispatcher(jobQueue chan Job, maxWorkers int) *Dispatcher {
+func NewDispatcher(jobQueue chan Job, maxWorkers int, modelDir string) *Dispatcher {
 	workerPool := make(chan chan Job, maxWorkers)
 
 	return &Dispatcher{
 		jobQueue:   jobQueue,
 		maxWorkers: maxWorkers,
 		workerPool: workerPool,
+		modelDir: modelDir,
 	}
 }
 
 type Dispatcher struct {
 	workerPool chan chan Job
 	maxWorkers int
-	jobQueue   chan Job
+	jobQueue chan Job
+	modelDir string
 }
 
 func (d *Dispatcher) run() {
 	for i := 0; i < d.maxWorkers; i++ {
-		worker := NewWorker(i+1, d.workerPool)
+		worker := NewWorker(i+1, d.workerPool, d.modelDir)
 		worker.start()
 	}
 
