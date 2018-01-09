@@ -151,7 +151,6 @@ class Donation(object):
 
 
 def createTFExample(donation):
-
 	imageFormat = ""
 	if donation.format == 'JPEG':
 		imageFormat = b'jpeg'
@@ -175,6 +174,9 @@ def createTFExample(donation):
 		xmaxs.append((annotation.left + annotation.width) / width)
 		ymins.append((annotation.top / height))
 		ymaxs.append((annotation.top + annotation.height) / height)
+
+	if((len(xmins) == 0) or (len(xmaxs) == 0) or (len(ymins) == 0) or (len(ymaxs) == 0)):
+		return None
 
 	label = [donation.label.encode('utf8')]
 	classes = [(CATEGORIES_TO_TRAIN.index(donation.label) + 1)] #class indexes start with 1
@@ -303,7 +305,8 @@ def createTfRecordFile(donations):
 	writer = tf.python_io.TFRecordWriter(TFRECORD_OUTPUT_PATH)
 	for donation in donations:
 		t = createTFExample(donation)
-		writer.write(t.SerializeToString())
+		if t is not None:
+			writer.write(t.SerializeToString())
 
 	writer.close()
 
@@ -352,7 +355,7 @@ if __name__ == "__main__":
 	#ERROR: might be related to the fact that we are not writing the classes right. (see line 180). we need to write class names according to the label mapping
 
 
-	if not trainModel():
+	"""if not trainModel():
 		print "Couldn't train model"
 		sys.exit(1)
 
@@ -365,7 +368,7 @@ if __name__ == "__main__":
 		print "Couldn't restart processes"
 		sys.exit(1)
 
-	print "Successfully trained model"
+	print "Successfully trained model"""
 	
 
 

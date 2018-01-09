@@ -11,8 +11,52 @@ import (
     "time"
     "encoding/json"
     "os"
+    "bytes"
+    "io"
+    "github.com/yrsh/simplify-go"
 )
 
+/*type GrabcutRequest struct {
+	Uuid string `json:"uuid"`
+	Filename string `json:"filename"`
+	Rect json.RawMessage `json:"rect"`
+	Foreground []json.RawMessage `json:"foreground"`
+	Background []json.RawMessage `json:"background"`
+}
+
+type GrabcutMeRequest struct {
+	ImageId string `json:"uuid"`
+	Rect json.RawMessage `json:"rect"`
+	Foreground []json.RawMessage `json:"foreground"`
+	Background []json.RawMessage `json:"background"`
+}*/
+
+
+type GrabcutRequest struct {
+	Uuid string `json:"uuid"`
+	Filename string `json:"filename"`
+	Mask []byte `json:"mask"`
+}
+
+type GrabcutResult struct {
+	Points [][]float64 `json:"points"`
+	Error string `json:"error"`
+}
+/*type GrabcutMeRequest struct {
+	ImageId string `json:"uuid"`
+}*/
+
+
+type GrabcutMeResultPoint struct {
+	X float32 `json:"x"`
+	Y float32 `json:"y"`
+}
+
+type GrabcutMeResult struct {
+	Points []GrabcutMeResultPoint `json:"points"`
+	Type string `json:"type"`
+	Angle float32 `json:"angle"`
+}
 
 func main() {
 	log.SetLevel(log.DebugLevel)
@@ -21,6 +65,7 @@ func main() {
 	redisAddress := flag.String("redis-address", ":6379", "Address to the Redis server")
 	redisMaxConnections := flag.Int("redis-max-connections", 50, "Max connections to Redis")
 	predictionsDir := flag.String("predictions-dir", "../predictions/", "Location of the temporary saved images for predictions")
+	donationsDir := flag.String("donations_dir", "../../imagemonkey-core/donations/", "Location of the uploaded and verified donations")
 
 	flag.Parse()
 	if(*releaseMode){
@@ -96,7 +141,7 @@ func main() {
 
 		serialized, err := json.Marshal(predictionRequest)
 		if err != nil {
-			log.Debug("[Predicting] Couldn't accept request: ", err.Error())
+			log.Debug("[Predicting] Couldn't serialize request: ", err.Error())
 			c.JSON(500, gin.H{"error": "Couldn't accept request - please try again later"})
 			return
 		}
@@ -155,6 +200,154 @@ func main() {
 
     	c.JSON(http.StatusOK, gin.H{"label": predictionResult.Result.Label, "score": predictionResult.Result.Score, 
     								"model_info": predictionResult.ModelInfo})
+	})
+
+	router.POST("/v1/grabcut", func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Expose-Headers" ,"Location")
+		redisConn := redisPool.Get()
+		defer redisConn.Close()
+
+		file, header, err := c.Request.FormFile("image")
+		if(err != nil){
+			log.Debug("image is missing")
+			c.JSON(400, gin.H{"error": "Picture is missing"})
+			return
+		}
+
+		c.SaveUploadedFile(header, (*predictionsDir + "test.png"))
+
+		imageUuid := c.PostForm("uuid")
+		if imageUuid == "" {
+			c.JSON(422, gin.H{"error": "Couldn't process request - parameters missing"})
+			return
+		}
+
+
+		buf := bytes.NewBuffer(nil)
+		if _, err := io.Copy(buf, file); err != nil {
+		    c.JSON(500, gin.H{"error": "Couldn't process request - please try again later"})
+		    return
+		}
+
+		var grabcutRequest GrabcutRequest		
+		grabcutRequest.Filename = (*donationsDir + imageUuid)
+		grabcutRequest.Mask = buf.Bytes()
+		grabcutRequest.Uuid = uuid.NewV4().String()
+
+		//log.Fatal("aaa = ", len(buf.Bytes()))
+
+		serialized, err := json.Marshal(grabcutRequest)
+		if err != nil {
+			log.Debug("[Grabcutme] Couldn't serialize request: ", err.Error())
+			c.JSON(500, gin.H{"error": "Couldn't accept request - please try again later"})
+			return
+		}
+
+
+		_, err = redisConn.Do("RPUSH", "grabcutme", serialized)
+		if err != nil {
+			log.Debug("[Grabcutme] Couldn't accept request: ", err.Error())
+			c.JSON(500, gin.H{"error": "Couldn't accept request - please try again later"})
+			return
+		}
+
+		c.Writer.Header().Set("Location", grabcutRequest.Uuid)
+		c.JSON(202, gin.H{})
+
+
+		/*var grabcutMeRequest GrabcutMeRequest
+
+		err := c.BindJSON(&grabcutMeRequest)
+		if err != nil {
+			log.Debug(err.Error())
+			c.JSON(422, gin.H{"error": "Couldn't process request - parameters missing"})
+			return
+		}
+
+		var grabcutRequest GrabcutRequest		
+		grabcutRequest.Filename = (*donationsDir + grabcutMeRequest.ImageId)
+		grabcutRequest.Rect = grabcutMeRequest.Rect
+		grabcutRequest.Foreground = grabcutMeRequest.Foreground
+		grabcutRequest.Background = grabcutMeRequest.Background
+		grabcutRequest.Uuid = uuid.NewV4().String()
+
+		serialized, err := json.Marshal(grabcutRequest)
+		if err != nil {
+			log.Debug("[Grabcutme] Couldn't serialize request: ", err.Error())
+			c.JSON(500, gin.H{"error": "Couldn't accept request - please try again later"})
+			return
+		}
+
+
+		_, err = redisConn.Do("RPUSH", "grabcutme", serialized)
+		if err != nil {
+			log.Debug("[Grabcutme] Couldn't accept request: ", err.Error())
+			c.JSON(500, gin.H{"error": "Couldn't accept request - please try again later"})
+			return
+		}
+
+		c.Writer.Header().Set("Location", grabcutRequest.Uuid)
+		c.JSON(202, gin.H{})*/
+
+	})
+
+	router.GET("/v1/grabcut/:uuid", func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+	    uuid := c.Param("uuid")
+	    key := "grabcut" + uuid
+
+	    redisConn := redisPool.Get()
+		defer redisConn.Close()
+
+		ok, err := redis.Bool(redisConn.Do("EXISTS", key))
+	    if err != nil{
+	    	log.Debug("[Grabcut] Couldn't check status of request: ", err.Error())
+			c.JSON(500, gin.H{"error": "Couldn't check status of request - please try again later"})
+			return	
+	    }
+
+	    if(!ok) { //nothing available yet. Which means either the uuid is wrong or processing isn't finished. 
+	    		  //at this point we don't care for the reason.
+	    	c.JSON(200, gin.H{})
+	    	return
+	    }
+
+
+	    var data []byte
+	    var grabcutResult GrabcutResult
+    	data, err = redis.Bytes(redisConn.Do("GET", key))
+    	if err != nil{
+    		log.Debug("[Grabcut] Couldn't get status of request: ", err.Error())
+			c.JSON(500, gin.H{"error": "Couldn't get status of request - please try again later"})
+			return	
+    	}
+
+    	err = json.Unmarshal(data, &grabcutResult)
+    	if err != nil{
+    		log.Debug("[Grabcut] Couldn't unmarshal: ", err.Error())
+			c.JSON(500, gin.H{"error": "Couldn't get status of request - please try again later"})
+			return	
+    	}
+
+    	var grabcutMeResult GrabcutMeResult
+    	simplifiedDataPoints := simplifier.Simplify(grabcutResult.Points, 0.8, false)
+    	for i,_ := range simplifiedDataPoints {
+    		var item GrabcutMeResultPoint
+    		item.X = float32(simplifiedDataPoints[i][0])
+    		item.Y = float32(simplifiedDataPoints[i][1])
+    		grabcutMeResult.Points = append(grabcutMeResult.Points, item)
+    	}
+
+    	
+    	grabcutMeResult.Angle = 0
+    	grabcutMeResult.Type = "polygon"
+
+    	if grabcutResult.Error == "" {
+    		c.JSON(http.StatusOK, gin.H{"result": grabcutMeResult})
+    	} else {
+    		c.JSON(http.StatusOK, gin.H{"result": grabcutMeResult, "error": grabcutResult.Error})
+    	}
 	})
 
 
