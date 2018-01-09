@@ -16,20 +16,6 @@ import (
     "github.com/yrsh/simplify-go"
 )
 
-/*type GrabcutRequest struct {
-	Uuid string `json:"uuid"`
-	Filename string `json:"filename"`
-	Rect json.RawMessage `json:"rect"`
-	Foreground []json.RawMessage `json:"foreground"`
-	Background []json.RawMessage `json:"background"`
-}
-
-type GrabcutMeRequest struct {
-	ImageId string `json:"uuid"`
-	Rect json.RawMessage `json:"rect"`
-	Foreground []json.RawMessage `json:"foreground"`
-	Background []json.RawMessage `json:"background"`
-}*/
 
 
 type GrabcutRequest struct {
@@ -42,9 +28,6 @@ type GrabcutResult struct {
 	Points [][]float64 `json:"points"`
 	Error string `json:"error"`
 }
-/*type GrabcutMeRequest struct {
-	ImageId string `json:"uuid"`
-}*/
 
 
 type GrabcutMeResultPoint struct {
@@ -205,6 +188,7 @@ func main() {
 	router.POST("/v1/grabcut", func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Expose-Headers" ,"Location")
+
 		redisConn := redisPool.Get()
 		defer redisConn.Close()
 
@@ -215,7 +199,7 @@ func main() {
 			return
 		}
 
-		c.SaveUploadedFile(header, (*predictionsDir + "test.png"))
+		//c.SaveUploadedFile(header, (*predictionsDir + "test.png"))
 
 		imageUuid := c.PostForm("uuid")
 		if imageUuid == "" {
@@ -235,8 +219,6 @@ func main() {
 		grabcutRequest.Mask = buf.Bytes()
 		grabcutRequest.Uuid = uuid.NewV4().String()
 
-		//log.Fatal("aaa = ", len(buf.Bytes()))
-
 		serialized, err := json.Marshal(grabcutRequest)
 		if err != nil {
 			log.Debug("[Grabcutme] Couldn't serialize request: ", err.Error())
@@ -254,42 +236,6 @@ func main() {
 
 		c.Writer.Header().Set("Location", grabcutRequest.Uuid)
 		c.JSON(202, gin.H{})
-
-
-		/*var grabcutMeRequest GrabcutMeRequest
-
-		err := c.BindJSON(&grabcutMeRequest)
-		if err != nil {
-			log.Debug(err.Error())
-			c.JSON(422, gin.H{"error": "Couldn't process request - parameters missing"})
-			return
-		}
-
-		var grabcutRequest GrabcutRequest		
-		grabcutRequest.Filename = (*donationsDir + grabcutMeRequest.ImageId)
-		grabcutRequest.Rect = grabcutMeRequest.Rect
-		grabcutRequest.Foreground = grabcutMeRequest.Foreground
-		grabcutRequest.Background = grabcutMeRequest.Background
-		grabcutRequest.Uuid = uuid.NewV4().String()
-
-		serialized, err := json.Marshal(grabcutRequest)
-		if err != nil {
-			log.Debug("[Grabcutme] Couldn't serialize request: ", err.Error())
-			c.JSON(500, gin.H{"error": "Couldn't accept request - please try again later"})
-			return
-		}
-
-
-		_, err = redisConn.Do("RPUSH", "grabcutme", serialized)
-		if err != nil {
-			log.Debug("[Grabcutme] Couldn't accept request: ", err.Error())
-			c.JSON(500, gin.H{"error": "Couldn't accept request - please try again later"})
-			return
-		}
-
-		c.Writer.Header().Set("Location", grabcutRequest.Uuid)
-		c.JSON(202, gin.H{})*/
-
 	})
 
 	router.GET("/v1/grabcut/:uuid", func(c *gin.Context) {
@@ -330,6 +276,7 @@ func main() {
 			return	
     	}
 
+    	//simplify polyline
     	var grabcutMeResult GrabcutMeResult
     	simplifiedDataPoints := simplifier.Simplify(grabcutResult.Points, 0.8, false)
     	for i,_ := range simplifiedDataPoints {
