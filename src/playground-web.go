@@ -192,7 +192,7 @@ func main() {
 		redisConn := redisPool.Get()
 		defer redisConn.Close()
 
-		file, header, err := c.Request.FormFile("image")
+		file, _, err := c.Request.FormFile("image")
 		if(err != nil){
 			log.Debug("image is missing")
 			c.JSON(400, gin.H{"error": "Picture is missing"})

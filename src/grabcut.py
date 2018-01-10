@@ -42,7 +42,7 @@ def getContours(filename, grabcutMask):
     _, contours, _ = cv.findContours(mask2, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
 
     #find the biggest area
-    cnt = contours[0]
+    """cnt = contours[0]
     max_area = cv.contourArea(cnt)
 
     for cont in contours:
@@ -53,7 +53,7 @@ def getContours(filename, grabcutMask):
     epsilon = 0.009*cv.arcLength(cnt,True)
     approx = cv.approxPolyDP(cnt,epsilon,True)
 
-    contours = cv.convexHull(cnt)
+    contours = cv.convexHull(cnt)"""
 
     if len(contours) == 0:
         contours = np.empty([0, 0])
