@@ -100,6 +100,6 @@ if __name__ == "__main__":
         if err is None:
             res["points"] = cont.tolist()
         else:
-            res["points"] = np.empty([0, 0])
+            res["points"] = np.empty([0, 0]).tolist()
             
         r.setex(key, json.dumps(res), expireInSecs)

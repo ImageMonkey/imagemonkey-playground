@@ -48,7 +48,7 @@ func main() {
 	redisAddress := flag.String("redis-address", ":6379", "Address to the Redis server")
 	redisMaxConnections := flag.Int("redis-max-connections", 50, "Max connections to Redis")
 	predictionsDir := flag.String("predictions-dir", "../predictions/", "Location of the temporary saved images for predictions")
-	donationsDir := flag.String("donations_dir", "../../imagemonkey-core/donations/", "Location of the uploaded and verified donations")
+	donationsDir := flag.String("donations-dir", "../../imagemonkey-core/donations/", "Location of the uploaded and verified donations")
 
 	flag.Parse()
 	if(*releaseMode){
@@ -278,7 +278,7 @@ func main() {
 
     	//simplify polyline
     	var grabcutMeResult GrabcutMeResult
-    	simplifiedDataPoints := simplifier.Simplify(grabcutResult.Points, 0.8, false)
+    	simplifiedDataPoints := simplifier.Simplify(grabcutResult.Points, 1.5, false)
     	for i,_ := range simplifiedDataPoints {
     		var item GrabcutMeResultPoint
     		item.X = float32(simplifiedDataPoints[i][0])
