@@ -1,7 +1,12 @@
+import sys
+import os
+
+#add Mask_RCNN path to search path
+sys.path.append(os.path.dirname(os.path.realpath(__file__)) + os.path.sep + ".." + os.path.sep + "Mask_RCNN")
+
 import requests
 import secrets
 import time
-import os
 import coco
 import utils
 import model as modellib
