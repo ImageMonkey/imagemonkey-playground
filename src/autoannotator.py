@@ -75,6 +75,8 @@ class AutoAnnotator(object):
 		self._itemsToProcess = self._getItemsToProcess()
 		self._currentProcessedItem = -1
 
+		cocoModelPath = os.path.join(cocoModelDir, "mask_rcnn_coco.h5")
+
 		config = InferenceConfig()
 
 		# Create model object in inference mode.
@@ -83,7 +85,6 @@ class AutoAnnotator(object):
 		self._donationsDir = os.path.abspath(donationsDir)
 
 		# Load weights trained on MS-COCO
-		cocoModelPath = os.path.join(cocoModelDir, "mask_rcnn_coco.h5")
 		self._model.load_weights(cocoModelPath, by_name=True)
 
 	def _getAvailableLabels(self):
@@ -189,7 +190,10 @@ class AutoAnnotator(object):
 		if len(groupedMasks) > 0:
 			for key in groupedMasks:
 				if isLabelDefined(data["labels"], key):
-					self._addAnnotation(imageId, key, groupedMasks[key])
+					if((score is not None) and (score > 0.55)):
+						self._addAnnotation(imageId, key, groupedMasks[key])
+					else:
+						print("label score too low, so skipping it", key)
 				else:
 					print("label not defined, so skipping it ", key)
 		else: #nothing found
@@ -211,9 +215,12 @@ if __name__ == "__main__":
 
 
 	while True:
-		if not autoAnnotator.next(): #everything annotated
-			time.sleep(60 * 5) #sleep for 5min
-			break
+		try:
+			if not autoAnnotator.next(): #everything annotated
+				time.sleep(60 * 5) #sleep for 5min
+				break
+		except:
+			pass #TODO: handle me
 		time.sleep(30)
 
 
