@@ -76,4 +76,3 @@ iptables -A OUTPUT -o lo -j ACCEPT
     chown root:docker /var/run/docker.sock
     chown root:docker /usr/bin/docker
 ```
-* copy 
