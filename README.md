@@ -63,7 +63,6 @@ iptables -A OUTPUT -o lo -j ACCEPT
 ```
 
     #Add the docker group if it doesn't already exist.
-    
     sudo groupadd docker
     
     #Add user 'playgroun' to the docker group.
