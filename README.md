@@ -43,6 +43,37 @@ iptables -A OUTPUT -o lo -j ACCEPT
 
 
 
-* intall supervisorctl 
+* install supervisor with `apt-get install supervisor`
+* add `imagemonkey` user to supervisor group with `adduser imagemonkey supervisor`
+* create logging directories for all the services:
+  ```
+  mkdir -p /var/log/imagemonkey-playground
+  mkdir -p /var/log/imagemonkey-playground-autoannotator
+  mkdir -p /var/log/imagemonkey-playground-grabcut
+  mkdir -p /var/log/imagemonkey-playground-train
+  mkdir -p /var/log/imagemonkey-playground-web
+  ```
+* copy `conf/supervisor/*` to `/etc/supervisor/conf.d/`
+* run `supervisorctl reread && supervisorctl update && supervisorctl restart all
+
 * use `visudo` and add the following entry `playground ALL = (root) NOPASSWD:/usr/bin/supervisorctl restart all` after the line `%sudo   ALL=(ALL:ALL) ALL` to restart supervisord controlled processes with sudo as non-root user
 
+* install `docker`
+* make it possible to let users other than root run docker with: 
+```
+
+    #Add the docker group if it doesn't already exist.
+    
+    sudo groupadd docker
+    
+    #Add user 'playgroun' to the docker group.
+    sudo gpasswd -a playground docker
+    
+    #Restart the docker daemon.
+    sudo service docker restart
+    
+    #Change owner of the following files
+    chown root:docker /var/run/docker.sock
+    chown root:docker /usr/bin/docker
+```
+* copy 
