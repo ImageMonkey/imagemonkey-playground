@@ -1,6 +1,7 @@
 import docker
 import argparse
 import signal
+import socket
 import sys
 import os
 import shutil
@@ -11,6 +12,7 @@ import raven
 import secrets
 import logging
 import time
+from logging.handlers import RotatingFileHandler
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
@@ -135,6 +137,7 @@ def train_model(categories, build_dir, dst_dir, clear_before_start):
 		shutil.copyfile(src, dst)
 
 	except Exception as e:
+		log.error("Couldn't copy trained model to destination")
 		raven_client.captureException()
 		return False
 
@@ -143,7 +146,8 @@ def train_model(categories, build_dir, dst_dir, clear_before_start):
 		raven_client.captureMessage("Couldn't restart all processes!")
 		return False
 
-	log.info("Training done")
+	log.info("Training done, stopping container")
+	container.stop()
 	return True
 
 
@@ -172,17 +176,42 @@ def write_model_info(categories, basedOn, path):
 		return False
 	return True
 
+#we are using abstract sockets to make sure that only one instance of this
+#program runs at any time. abstract sockets are better, as they are no lingering
+#files in case the program dies
+def acquire_lock(process_name):
+    # Without holding a reference to our socket somewhere it gets garbage
+    # collected when the function exits
+    acquire_lock._lock_socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+
+    try:
+        acquire_lock._lock_socket.bind('\0' + process_name)
+        #print("got the lock") #got the lock
+    except socket.error:
+        log.info("Couldn't start program, as there is already one instance of this program running")
+        raven_client.captureMessage("Couldn't start program, as there is already one instance of this program running")
+        sys.exit()
+
 if __name__ == "__main__":
 	logging.basicConfig(level=logging.INFO) 
 
 	parser = argparse.ArgumentParser(prog='PROG')
 	parser.add_argument('--build_dir', help='specify the build directory', required=True)
-	parser.add_argument('--clear_before_start', help='clear build directory before start', required=False, default=False)
+	parser.add_argument('--clear_before_start', help='clear build directory before start', type=bool, required=False, default=False)
 	parser.add_argument('--dst_dir', help='specify the destination directory', required=True)
-	parser.add_argument('--use_sentry', help='use sentry to log errors', required=False, default=False)
-	parser.add_argument('--interval', help='rebuild interval [secs]', required=False, default=(3600 * 24)) #default is once per day
+	parser.add_argument('--use_sentry', help='use sentry to log errors', type=bool, required=False, default=False)
+	parser.add_argument('--log_folder', help='log folder', required=False, default="")
+	#parser.add_argument('--interval', help='rebuild interval [secs]', type=int, required=False, default=(3600 * 24)) #default is once per day
 
 	args = parser.parse_args()
+
+	if args.log_folder != "":
+		log_folder = args.log_folder + os.path.sep + "out.log"
+		handler = RotatingFileHandler(log_folder, maxBytes=25000, backupCount=5)
+		log.addHandler(handler)
+
+	#make sure that only one instance of this script runs at any time
+	acquire_lock("imagemonkey-playground-train")
 
 	if args.use_sentry:
 		if not hasattr(secrets, 'SENTRY_DSN') or  secrets.SENTRY_DSN == "":
@@ -190,6 +219,8 @@ if __name__ == "__main__":
 			sys.exit(1)
 
 	raven_client = raven.Client(secrets.SENTRY_DSN)
+	raven_client.captureMessage("Starting ImageMonkey Train")
+	log.info("Starting ImageMonkey Train")
 
 	if not dir_exists(args.build_dir):
 		log.error("Directory %s doesn't exist!" %(args.build_dir))
@@ -197,11 +228,32 @@ if __name__ == "__main__":
 
 	categories = ["cat", "dog", "apple", "tree", "person"]
 
+	success = False
+	try:
+		success = train_model(categories, args.build_dir, args.dst_dir, args.clear_before_start)
+	except Exception as e:
+		log.exception("Couldn't train neural net due to uncaught exception")
+		raven_client.captureException()
 
-	while True:
-		if not train_model(categories, args.build_dir, args.dst_dir, args.clear_before_start):
+	if not success:
+		log.error("Couldn't train neural net")
+	else:
+		log.info("Successfully trained neural net")
+
+
+	"""while True:
+		success = False
+		try:
+			success = train_model(categories, args.build_dir, args.dst_dir, args.clear_before_start)
+		except Exception as e:
+			log.exception("Couldn't train neural net due to uncaught exception")
+			raven_client.captureException()
+
+		if not success:
+			log.info("Couldn't train neural net, re-try in %d" %(args.interval,))
 			time.sleep(3600 * 5) #in case of an error, wait five hours and try again
 		else:
-			time.sleep(args.interval) #if everything went fine, re-build after the specified interval
+			log.info("Successfully trained neural net, rebuild in %d" %(args.interval,))
+			time.sleep(args.interval) #if everything went fine, re-build after the specified interval"""
 
 

@@ -1,0 +1,2 @@
+# every day at 4:30am build model
+30 4 * * * /usr/bin/python3 /home/playground/bin/train.py  --build_dir=/home/playground/tmp-build-dir --clear_before_start=True --dst_dir=/home/playground/training/models/ --use_sentry=True --log_folder=/var/log/imagemonkey-playground-train/
