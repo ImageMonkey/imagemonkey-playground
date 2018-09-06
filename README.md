@@ -1,7 +1,10 @@
-> # Because training a ML model is easy - finding a good image dataset is hard.
+<img src="https://raw.githubusercontent.com/bbernhard/imagemonkey-core/develop/img/logo.png" align="left" width="180" >
 
 
-ImageMonkey is a free, public open source image validation service. With all the great machine learning frameworks available it's pretty easy to train pre-trained Machine Learning models with your own image dataset. However, in order to do so you need a lot of images. And that's usually the point where it get's tricky. You either have to create the training images yourself or scrape them together from various datasources. ImageMonkey aims to solve this problem, by providing a platform where users can drop their photos, tag them with a label, and put them into public domain. 
+ImageMonkey is a free, public open source dataset. With all the great machine learning frameworks available it's pretty easy to train pre-trained Machine Learning models with your own image dataset. However, in order to do so you need a lot of images. And that's usually the point where it get's tricky. You either have to create the training images yourself or scrape them together from various datasources. ImageMonkey aims to solve this problem, by providing a platform where users can drop their photos, tag them with a label, and put them into public domain.
+
+---
+![Alt Text](https://github.com/bbernhard/imagemonkey-core/raw/master/img/animation.gif)
 
 This repository contains the sourcecode of the ImageMonkey Playground. The ImageMonkey Playground is an online image classification service where users can upload photos which then are classified by a ML model trained with the currently available dataset. 
 
@@ -40,6 +43,35 @@ iptables -A OUTPUT -o lo -j ACCEPT
 
 
 
-* intall supervisorctl 
+* install supervisor with `apt-get install supervisor`
+* add `imagemonkey` user to supervisor group with `adduser imagemonkey supervisor`
+* create logging directories for all the services:
+  ```
+  mkdir -p /var/log/imagemonkey-playground
+  mkdir -p /var/log/imagemonkey-playground-autoannotator
+  mkdir -p /var/log/imagemonkey-playground-grabcut
+  mkdir -p /var/log/imagemonkey-playground-train
+  mkdir -p /var/log/imagemonkey-playground-web
+  ```
+* copy `conf/supervisor/*` to `/etc/supervisor/conf.d/`
+* run `supervisorctl reread && supervisorctl update && supervisorctl restart all
+
 * use `visudo` and add the following entry `playground ALL = (root) NOPASSWD:/usr/bin/supervisorctl restart all` after the line `%sudo   ALL=(ALL:ALL) ALL` to restart supervisord controlled processes with sudo as non-root user
 
+* install `docker`
+* make it possible to let users other than root run docker with: 
+```
+
+    #Add the docker group if it doesn't already exist.
+    sudo groupadd docker
+    
+    #Add user 'playgroun' to the docker group.
+    sudo gpasswd -a playground docker
+    
+    #Restart the docker daemon.
+    sudo service docker restart
+    
+    #Change owner of the following files
+    chown root:docker /var/run/docker.sock
+    chown root:docker /usr/bin/docker
+```
