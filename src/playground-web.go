@@ -41,6 +41,21 @@ type GrabcutMeResult struct {
 	Angle float32 `json:"angle"`
 }
 
+//CORS Middleware
+func CorsMiddleware(allowOrigin string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", allowOrigin)
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With, X-PINGOTHER, X-File-Name, Cache-Control")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET,    PUT, PATCH, HEAD")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(200)
+		} else {
+			c.Next()		
+		}	
+	}
+}
+
 func main() {
 	log.SetLevel(log.DebugLevel)
 
@@ -49,6 +64,7 @@ func main() {
 	redisMaxConnections := flag.Int("redis-max-connections", 50, "Max connections to Redis")
 	predictionsDir := flag.String("predictions-dir", "../predictions/", "Location of the temporary saved images for predictions")
 	donationsDir := flag.String("donations-dir", "../../imagemonkey-core/donations/", "Location of the uploaded and verified donations")
+	corsAllowOrigin := flag.String("cors_allow_origin", "*", "CORS Access-Control-Allow-Origin")
 
 	flag.Parse()
 	if(*releaseMode){
@@ -82,18 +98,19 @@ func main() {
 
 
 	router := gin.Default()
+	router.Use(CorsMiddleware(*corsAllowOrigin))
 
-	router.OPTIONS("/v1/predict", func(c *gin.Context) {
+	/*router.OPTIONS("/v1/predict", func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 	    c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With, X-PINGOTHER, X-File-Name, Cache-Control")
 	    c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
 	    c.JSON(http.StatusOK, struct{}{})
-	})
+	})*/
 
 	router.POST("/v1/predict", func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+	/*	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 	    c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With, X-PINGOTHER, X-File-Name, Cache-Control")
-	    c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
+	    c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")*/
 	    c.Writer.Header().Set("Access-Control-Expose-Headers" ,"Location")
 
 	    classificationType := c.PostForm("classification_type")
@@ -147,9 +164,9 @@ func main() {
 	})
 
 	router.GET("/v1/predict/:uuid", func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		/*c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 	    c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With, X-PINGOTHER, X-File-Name, Cache-Control")
-	    c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
+	    c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")*/
 
 	    uuid := c.Param("uuid")
 	    key := "predict" + uuid
@@ -192,7 +209,6 @@ func main() {
 	})
 
 	router.POST("/v1/grabcut", func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Expose-Headers" ,"Location")
 
 		redisConn := redisPool.Get()
@@ -251,7 +267,7 @@ func main() {
 	})
 
 	router.GET("/v1/grabcut/:uuid", func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		//c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 	    uuid := c.Param("uuid")
 	    key := "grabcut" + uuid
 
@@ -309,6 +325,11 @@ func main() {
     	}
 	})
 
+	if *corsAllowOrigin == "*" {
+		corsWarning := "CORS Access-Control-Allow-Origin is set to '*' - which is a potential security risk."
+		corsWarning += "DO NOT RUN THE SERVICE IN PRODUCTION WITH THIS CONFIGURATION!"
+		log.Info(corsWarning)
+	}
 
 	router.Run(":8082")
 }
