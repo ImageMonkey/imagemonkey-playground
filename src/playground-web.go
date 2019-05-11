@@ -104,7 +104,13 @@ func main() {
 			return
 		}
 
-		uuid := uuid.NewV4().String()
+		u, err := uuid.NewV4()
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Couldn't process request, please try again later!"})
+			return
+		}
+
+		uuid := u.String()
 		c.SaveUploadedFile(header, (*predictionsDir + uuid))
 
 		redisConn := redisPool.Get()
@@ -214,10 +220,16 @@ func main() {
 		    return
 		}
 
+		u, err := uuid.NewV4()
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Couldn't process request - please try again later"})
+		    return
+		}
+
 		var grabcutRequest GrabcutRequest		
 		grabcutRequest.Filename = (*donationsDir + imageUuid)
 		grabcutRequest.Mask = buf.Bytes()
-		grabcutRequest.Uuid = uuid.NewV4().String()
+		grabcutRequest.Uuid = u.String()
 
 		serialized, err := json.Marshal(grabcutRequest)
 		if err != nil {
