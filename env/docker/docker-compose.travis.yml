@@ -1,0 +1,11 @@
+version: "3.2"
+services:
+  grabcut:
+    network_mode: host
+    ports:
+      - 6379:6379
+    build:
+      context: "../../"
+      dockerfile: env/docker/Dockerfile.grabcut
+    env_file:
+        - ../docker/env.travis
