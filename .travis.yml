@@ -13,4 +13,4 @@ before_install: |
 jobs:
   include:
     - stage: build
-      script: cd $TRAVIS_BUILD_DIR && docker -t imagemonkey-grabcut -f env/docker/Dockerfile.grabcut .
+      script: cd $TRAVIS_BUILD_DIR && docker build -t imagemonkey-grabcut -f env/docker/Dockerfile.grabcut .
