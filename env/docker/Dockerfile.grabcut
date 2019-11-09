@@ -8,6 +8,6 @@ RUN apt-get update \
 
 RUN mkdir -p /tmp/grabcut
 
-COPY src/grabcut.py /tmp/grabcut/grabcut.py
+COPY src/grabcut/grabcut.py /tmp/grabcut/grabcut.py
 
 CMD [ "python", "-u", "/tmp/grabcut/grabcut.py" ]
