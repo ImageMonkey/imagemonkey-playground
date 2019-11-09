@@ -6,3 +6,5 @@ src/secrets.py
 models/coco/mask_rcnn_coco.h5
 src/__pycache__
 src/*.pyc
+src/api/api
+src/predict/predict

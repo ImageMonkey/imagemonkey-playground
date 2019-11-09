@@ -1,0 +1,20 @@
+FROM golang:1.13-stretch
+
+RUN mkdir -p /home/go/bin
+ENV GOPATH=/home/go
+ENV GOBIN=/home/go/bin
+
+RUN mkdir -p /tmp/api \
+	&& mkdir -p /tmp/commons
+
+COPY src/api/api.go /tmp/api/api.go
+COPY src/api/go.mod /tmp/api/go.mod
+COPY src/api/go.sum /tmp/api/go.sum
+
+COPY src/commons/go.mod /tmp/commons/go.mod
+COPY src/commons/common.go /tmp/commons/common.go
+
+RUN cd /tmp/api \
+	&& go install api.go
+
+CMD [ "/home/imagemonkey/bin/api" ]

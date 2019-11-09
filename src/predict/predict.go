@@ -17,13 +17,14 @@ import (
     "github.com/garyburd/redigo/redis"
     "encoding/json"
     "time"
+	commons "github.com/bbernhard/imagemonkey-playground/commons"
 )
 
  	
 
 type Predictor interface {
     Load(modelPath string, labelPath string) error
-    Predict(file multipart.File) (TFResult, error)
+    Predict(file multipart.File) (commons.TFResult, error)
     Close()
 }
 
@@ -31,7 +32,7 @@ type TensorflowPredictor struct {
     labels []string
     graph *tf.Graph
     session *tf.Session
-    modelInfo ModelInfo
+    modelInfo commons.ModelInfo
 }
 
 func NewTensorflowPredictor() *TensorflowPredictor {
@@ -46,7 +47,7 @@ func (p *TensorflowPredictor) Load(basePath string) error{
         return err
 	}
 
-	var modelInfo ModelInfo
+	var modelInfo commons.ModelInfo
 	err = json.Unmarshal(modelInfoFile, &modelInfo)
 	if err != nil {
 		log.Debug("[Main] Couldn't parse model info: ", err.Error())
@@ -88,8 +89,8 @@ func (p *TensorflowPredictor) Load(basePath string) error{
 }
 
 
-func (p *TensorflowPredictor) Predict(file string) (TFResult, error){
-	var res TFResult
+func (p *TensorflowPredictor) Predict(file string) (commons.TFResult, error){
+	var res commons.TFResult
 	res.Label = "";
 	res.Score = 0;
 	// For multiple images, session.Run() can be called in a loop (and
@@ -149,8 +150,8 @@ func loadLabels(path string) ([]string, error){
 	return labels, nil
 }
 
-func getBestLabel(probabilities []float32, labels []string) TFResult{
-	var result TFResult
+func getBestLabel(probabilities []float32, labels []string) commons.TFResult{
+	var result commons.TFResult
 	bestIdx := 0
 	for i, p := range probabilities {
 		if p > probabilities[bestIdx] {
@@ -278,7 +279,7 @@ func main() {
 
     	log.Debug("[Main] Got a new request to process")
 
-    	var predictionRequest PredictionRequest
+    	var predictionRequest commons.PredictionRequest
     	err = json.Unmarshal(data, &predictionRequest)
     	if err != nil{
     		log.Debug("[Main] Couldn't unmarshal: ", err.Error())

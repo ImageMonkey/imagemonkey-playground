@@ -6,7 +6,7 @@ import (
 	"net/http"
     "github.com/gin-gonic/gin"
     log "github.com/sirupsen/logrus"
-    "github.com/satori/go.uuid"
+    "github.com/gofrs/uuid"
     "github.com/garyburd/redigo/redis"
     "time"
     "encoding/json"
@@ -14,6 +14,7 @@ import (
     "bytes"
     "io"
     "github.com/yrsh/simplify-go"
+	commons "github.com/bbernhard/imagemonkey-playground/commons"
 )
 
 
@@ -134,7 +135,7 @@ func main() {
 		defer redisConn.Close()
 
 		//add a prediction request to the REDIS 'predictme' queue
-		var predictionRequest PredictionRequest		
+		var predictionRequest commons.PredictionRequest		
 		predictionRequest.Uuid = uuid
 		predictionRequest.Created = int64(time.Now().Unix())
 		predictionRequest.Filename = (*predictionsDir + uuid)
@@ -189,7 +190,7 @@ func main() {
 
 
 	    var data []byte
-	    var predictionResult PredictionResult
+	    var predictionResult commons.PredictionResult
     	data, err = redis.Bytes(redisConn.Do("GET", key))
     	if err != nil{
     		log.Debug("[Predicting] Couldn't get status of request: ", err.Error())

@@ -14,3 +14,7 @@ jobs:
   include:
     - stage: build
       script: cd $TRAVIS_BUILD_DIR && docker build -t imagemonkey-grabcut -f env/docker/Dockerfile.grabcut .
+    - # stage name not required, will continue to use `build`
+      script: cd $TRAVIS_BUILD_DIR && docker build -t imagemonkey-predict -f env/docker/Dockerfile.predict .
+    - # stage name not required, will continue to use `build`
+      script: cd $TRAVIS_BUILD_DIR && docker build -t imagemonkey-playground-api -f env/docker/Dockerfile.playground-api .

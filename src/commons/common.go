@@ -1,4 +1,4 @@
-package main
+package commons
 
 type TFResult struct {
     Label string `json:"label"`

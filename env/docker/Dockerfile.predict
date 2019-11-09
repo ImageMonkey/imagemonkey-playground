@@ -1,0 +1,29 @@
+FROM golang:1.13-stretch
+
+RUN mkdir -p /home/go/bin
+ENV GOPATH=/home/go
+ENV GOBIN=/home/go/bin
+
+RUN cd /tmp \ 
+	&& wget https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-1.14.0.tar.gz --directory-prefix=/tmp/ \
+	&& tar -C /usr/local -xzf libtensorflow-cpu-linux-x86_64-1.14.0.tar.gz \
+	&& rm -f libtensorflow-cpu-linux-x86_64-1.14.0.tar.gz \ 
+	&& ldconfig
+
+RUN mkdir -p /tmp/predict \
+	&& mkdir -p /tmp/commons
+
+COPY src/predict/predict.go /tmp/predict/predict.go
+COPY src/predict/worker.go /tmp/predict/worker.go
+COPY src/predict/go.mod /tmp/predict/go.mod
+COPY src/predict/go.sum /tmp/predict/go.sum
+
+COPY src/commons/go.mod /tmp/commons/go.mod
+COPY src/commons/common.go /tmp/commons/common.go
+
+RUN cd /tmp/predict \
+	&& go install
+
+
+
+CMD [ "/home/imagemonkey/bin/predict" ]
