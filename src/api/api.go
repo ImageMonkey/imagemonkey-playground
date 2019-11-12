@@ -13,8 +13,10 @@ import (
     "os"
     "bytes"
     "io"
+	"strconv"
     "github.com/yrsh/simplify-go"
 	commons "github.com/bbernhard/imagemonkey-playground/commons"
+	"github.com/getsentry/raven-go"
 )
 
 
@@ -42,6 +44,24 @@ type GrabcutMeResult struct {
 	Angle float32 `json:"angle"`
 }
 
+func GetEnv(name string) string {
+	val, found := os.LookupEnv(name)
+	if found {
+		return val
+	}
+
+	return ""
+}
+
+func MustGetEnv(name string) string {
+	val := GetEnv(name)
+	if val == "" {
+		log.Fatal("Couldn't get env ", name)
+	}
+
+	return val
+}
+
 //CORS Middleware
 func CorsMiddleware(allowOrigin string) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -61,16 +81,27 @@ func main() {
 	log.SetLevel(log.DebugLevel)
 
 	releaseMode := flag.Bool("release", false, "Run in release mode")
-	redisAddress := flag.String("redis-address", ":6379", "Address to the Redis server")
-	redisMaxConnections := flag.Int("redis-max-connections", 50, "Max connections to Redis")
-	predictionsDir := flag.String("predictions-dir", "../predictions/", "Location of the temporary saved images for predictions")
-	donationsDir := flag.String("donations-dir", "../../imagemonkey-core/donations/", "Location of the uploaded and verified donations")
+	redisAddress := flag.String("redis_address", ":6379", "Address to the Redis server")
+	redisMaxConnections := flag.Int("redis_max_connections", 50, "Max connections to Redis")
+	predictionsDir := flag.String("predictions_dir", "../predictions/", "Location of the temporary saved images for predictions")
+	donationsDir := flag.String("donations_dir", "../../imagemonkey-core/donations/", "Location of the uploaded and verified donations")
 	corsAllowOrigin := flag.String("cors_allow_origin", "*", "CORS Access-Control-Allow-Origin")
+	listenPort := flag.Int("listen_port", 8082, "Specify the listen port")
+	useSentry := flag.Bool("use_sentry", false, "Use Sentry for error logging")
 
 	flag.Parse()
 	if(*releaseMode){
 		fmt.Printf("[Main] Starting gin in release mode!\n")
 		gin.SetMode(gin.ReleaseMode)
+	}
+
+	if *useSentry {
+		fmt.Printf("Setting Sentry DSN\n")
+		sentryDsn := MustGetEnv("SENTRY_DSN")
+		raven.SetEnvironment("grabcut")
+		raven.SetDSN(sentryDsn)
+
+		raven.CaptureMessage("Starting up api worker", nil)
 	}
 
 	//creating predictions-dir if it not already exists
@@ -332,5 +363,5 @@ func main() {
 		log.Info(corsWarning)
 	}
 
-	router.Run(":8082")
+	router.Run(":" +strconv.Itoa(*listenPort))
 }

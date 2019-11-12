@@ -1,6 +1,10 @@
-FROM python:2.7-stretch
+FROM python:3-stretch
 
-RUN pip install redis opencv-python sentry-sdk 
+ENV USE_SENTRY=false
+ENV SENTRY_DSN=
+ENV REDIS_PORT=6379
+
+RUN pip3 install redis opencv-python sentry-sdk 
 
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends python-opencv \
@@ -9,5 +13,6 @@ RUN apt-get update \
 RUN mkdir -p /tmp/grabcut
 
 COPY src/grabcut/grabcut.py /tmp/grabcut/grabcut.py
+COPY env/docker/run_grabcut.sh /tmp/run_grabcut.sh
 
-CMD [ "python", "-u", "/tmp/grabcut/grabcut.py" ]
+CMD [ "/tmp/run_grabcut.sh" ]

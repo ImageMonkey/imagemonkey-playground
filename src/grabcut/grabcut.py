@@ -75,12 +75,17 @@ def is_maintenance(file_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog='PROG')
-    parser.add_argument('--use_sentry', help='use sentry to log errors', type=bool, required=False, default=False)
+    parser.add_argument('--use_sentry', help='use sentry to log errors', type=str, required=False, default="false")
     parser.add_argument('--maintenance_file', help='path to the maintenance file', required=False, default=None)
+    parser.add_argument('--redis_port', help='Redis port', type=int, required=False, default=6379)
 
     args = parser.parse_args()
 
-    if args.use_sentry:
+    if args.use_sentry != "false" and args.use_sentry != "true":
+        print("--use_sentry needs to be true or false!")
+        sys.exit(1)
+
+    if args.use_sentry == "true":
         sentry_dsn = os.environ.get("SENTRY_DSN")
         if sentry_dsn is None:
             print("Please provide a valid Sentry DSN!")
@@ -94,7 +99,7 @@ if __name__ == "__main__":
         capture_message("Starting ImageMonkey Grabcut")
         print("Starting ImageMonkey Grabcut")
 
-        pool = redis.ConnectionPool(host='localhost', port=6379, db=0)
+        pool = redis.ConnectionPool(host='localhost', port=str(args.redis_port), db=0)
         r = redis.Redis(connection_pool=pool)
 
         expire_in_secs = 600

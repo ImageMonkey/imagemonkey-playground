@@ -1,11 +1,16 @@
 FROM golang:1.13-stretch
 
+ENV USE_SENTRY=false
+ENV SENTRY_DSN=
+ENV REDIS_ADDRESS=:6379
+
 RUN mkdir -p /home/go/bin
 ENV GOPATH=/home/go
 ENV GOBIN=/home/go/bin
 
 RUN mkdir -p /tmp/api \
-	&& mkdir -p /tmp/commons
+	&& mkdir -p /tmp/commons \
+	&& mkdir -p /tmp/predictions
 
 COPY src/api/api.go /tmp/api/api.go
 COPY src/api/go.mod /tmp/api/go.mod
@@ -13,8 +18,11 @@ COPY src/api/go.sum /tmp/api/go.sum
 
 COPY src/commons/go.mod /tmp/commons/go.mod
 COPY src/commons/common.go /tmp/commons/common.go
+COPY env/docker/run_playground-api.sh /tmp/run_playground-api.sh
 
 RUN cd /tmp/api \
 	&& go install api.go
 
-CMD [ "/home/imagemonkey/bin/api" ]
+WORKDIR /home/go/bin
+
+CMD [ "/tmp/run_playground-api.sh" ]
