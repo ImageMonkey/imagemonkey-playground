@@ -76,7 +76,7 @@ func main() {
 		raven.SetEnvironment("grabcut")
 		raven.SetDSN(sentryDsn)
 
-		raven.CaptureMessage("Starting up api worker", nil)
+		raven.CaptureMessage("Starting up playground-api worker", nil)
 	}
 
 	//creating predictions-dir if it not already exists

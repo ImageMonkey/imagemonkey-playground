@@ -8,6 +8,7 @@ import (
 	datastructures "github.com/bbernhard/imagemonkey-playground/datastructures"
 	"github.com/disintegration/imaging"
 	"github.com/garyburd/redigo/redis"
+	"github.com/getsentry/raven-go"
 	log "github.com/sirupsen/logrus"
 	tf "github.com/tensorflow/tensorflow/tensorflow/go"
 	"image"
@@ -19,6 +20,24 @@ import (
 	"os"
 	"time"
 )
+
+func GetEnv(name string) string {
+	val, found := os.LookupEnv(name)
+	if found {
+		return val
+	}
+
+	return ""
+}
+
+func MustGetEnv(name string) string {
+	val := GetEnv(name)
+	if val == "" {
+		log.Fatal("Couldn't get env ", name)
+	}
+
+	return val
+}
 
 type Predictor interface {
 	Load(modelPath string, labelPath string) error
@@ -41,14 +60,16 @@ func (p *TensorflowPredictor) Load(basePath string) error {
 	//read model info file
 	modelInfoFile, err := ioutil.ReadFile((basePath + "model_info.json"))
 	if err != nil {
-		log.Debug("[Main] Couldn't read model info: ", err.Error())
+		log.Error("Couldn't read model info: ", err.Error())
+		raven.CaptureError(err, nil)
 		return err
 	}
 
 	var modelInfo datastructures.ModelInfo
 	err = json.Unmarshal(modelInfoFile, &modelInfo)
 	if err != nil {
-		log.Debug("[Main] Couldn't parse model info: ", err.Error())
+		log.Error("Couldn't parse model info: ", err.Error())
+		raven.CaptureError(err, nil)
 		return err
 	}
 	p.modelInfo = modelInfo
@@ -56,7 +77,8 @@ func (p *TensorflowPredictor) Load(basePath string) error {
 	//read labels file
 	labels, err := loadLabels((basePath + "labels.txt"))
 	if err != nil {
-		log.Debug("[Main] Couldn't get labels: ", err.Error())
+		log.Error("Couldn't get labels: ", err.Error())
+		raven.CaptureError(err, nil)
 		return err
 	}
 	p.labels = labels
@@ -64,21 +86,24 @@ func (p *TensorflowPredictor) Load(basePath string) error {
 	// Load the serialized GraphDef from a file.
 	model, err := ioutil.ReadFile((basePath + "graph.pb"))
 	if err != nil {
-		log.Debug("[Main] Couldn't read model: ", err.Error())
+		log.Error("Couldn't read model: ", err.Error())
+		raven.CaptureError(err, nil)
 		return err
 	}
 
 	// Construct an in-memory graph from the serialized form.
 	p.graph = tf.NewGraph()
 	if err := p.graph.Import(model, ""); err != nil {
-		log.Debug("[Main] Couldn't construct graph: ", err.Error())
+		log.Error("Couldn't construct graph: ", err.Error())
+		raven.CaptureError(err, nil)
 		return err
 	}
 
 	// Create a session for inference over graph.
 	p.session, err = tf.NewSession(p.graph, nil)
 	if err != nil {
-		log.Debug("[Main] Couldn't start session: ", err.Error())
+		log.Error("Couldn't start session: ", err.Error())
+		raven.CaptureError(err, nil)
 		return err
 	}
 
@@ -94,7 +119,8 @@ func (p *TensorflowPredictor) Predict(file string) (datastructures.TFResult, err
 	// model accepts batches of image data as input.
 	tensor, err := makeTensorFromImage(file)
 	if err != nil {
-		log.Debug("[Predicting Image Label] Couldn't create tensor from image: ", err.Error())
+		log.Error("[Predicting Image Label] Couldn't create tensor from image: ", err.Error())
+		raven.CaptureError(err, nil)
 		return res, err
 	}
 	output, err := p.session.Run(
@@ -108,7 +134,8 @@ func (p *TensorflowPredictor) Predict(file string) (datastructures.TFResult, err
 		},
 		nil)
 	if err != nil {
-		log.Debug("[Predicting Image Label] Couldn't run image prediction: ", err.Error())
+		log.Error("[Predicting Image Label] Couldn't run image prediction: ", err.Error())
+		raven.CaptureError(err, nil)
 		return res, err
 	}
 
@@ -128,7 +155,8 @@ func loadLabels(path string) ([]string, error) {
 	var labels []string
 	file, err := os.Open(path)
 	if err != nil {
-		log.Debug("[Loading Labels] Couldn't open file: ", err)
+		log.Error("[Loading Labels] Couldn't open file: ", err)
+		raven.CaptureError(err, nil)
 		return labels, err
 	}
 	defer file.Close()
@@ -137,7 +165,8 @@ func loadLabels(path string) ([]string, error) {
 		labels = append(labels, scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {
-		log.Debug("[Loading Labels] Failed to read labels file: ", err.Error())
+		log.Error("[Loading Labels] Failed to read labels file: ", err.Error())
+		raven.CaptureError(err, nil)
 		return labels, err
 	}
 
@@ -177,7 +206,7 @@ func makeTensorFromImage(file string) (*tf.Tensor, error) {
 
 	f, err := os.Open(file)
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
 	defer f.Close()
 
@@ -230,11 +259,20 @@ func main() {
 	maxWorkerQueueSize := flag.Int("max-worker-queue-size", 100, "The size of job queue")
 	maxWorkers := flag.Int("max-workers", 5, "The number of workers to start")
 	maxWorkersNSFW := flag.Int("max-workers-nsfw", 3, "The number of workers that operate on the NSFW model")
+	useSentry := flag.Bool("use_sentry", false, "Use Sentry for error logging")
 
 	flag.Parse()
 
-	log.Debug("[Main] Starting Playground Worker (Redis address: ", *redisAddress, ")")
-	log.Debug("[Main] Starting ThreadPool")
+	log.Info("Starting Playground Worker (Redis address: ", *redisAddress, ")")
+	log.Debug("Starting ThreadPool")
+
+	if *useSentry {
+		sentryDsn := MustGetEnv("SENTRY_DSN")
+		raven.SetEnvironment("predict")
+		raven.SetDSN(sentryDsn)
+
+		raven.CaptureMessage("Starting up playground-predict worker", nil)
+	}
 
 	redisPool = redis.NewPool(func() (redis.Conn, error) {
 		c, err := redis.Dial("tcp", *redisAddress)
@@ -247,7 +285,7 @@ func main() {
 	}, *redisMaxConnections)
 	defer redisPool.Close()
 
-	log.Debug("[Main] Starting Dispatcher...")
+	log.Debug("Starting Dispatcher")
 
 	jobQueue := make(chan Job, *maxWorkerQueueSize)
 	dispatcher := NewDispatcher(jobQueue, *maxWorkers, "/home/playground/training/models/")
@@ -270,12 +308,13 @@ func main() {
 			continue
 		}
 
-		log.Debug("[Main] Got a new request to process")
+		log.Debug("Got a new request to process")
 
 		var predictionRequest datastructures.PredictionRequest
 		err = json.Unmarshal(data, &predictionRequest)
 		if err != nil {
-			log.Debug("[Main] Couldn't unmarshal: ", err.Error())
+			log.Error("Couldn't unmarshal: ", err.Error())
+			raven.CaptureError(err, nil)
 			redisConn.Close()
 			continue
 		}
@@ -286,7 +325,7 @@ func main() {
 		} else if predictionRequest.Type == "nsfw-classification" {
 			nsfwJobQueue <- work
 		} else {
-			log.Debug("[Main] Invalid classification type: ", predictionRequest.Type)
+			log.Error("Invalid classification type: ", predictionRequest.Type)
 		}
 
 		redisConn.Close()

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	datastructures "github.com/bbernhard/imagemonkey-playground/datastructures"
 	log "github.com/sirupsen/logrus"
+	"github.com/getsentry/raven-go"
 	"os"
 )
 
@@ -55,22 +56,26 @@ func (w Worker) start() {
 
 					serialized, err := json.Marshal(predictionResult)
 					if err != nil {
-						log.Debug("[Worker] Couldn't marshal prediction result: ", err.Error())
+						log.Error("[Worker] Couldn't marshal prediction result: ", err.Error())
+						raven.CaptureError(err, nil)
 					} else {
 						//store result with an expiration time of 1hr...it doesn't make sense to store it longer
 						//than that.
 						_, err = redisConn.Do("SETEX", ("predict" + job.PredictionRequest.Uuid), 3600, serialized)
 						if err != nil {
-							log.Debug("[Worker] Couldn't set marshal result: ", err.Error())
+							log.Error("[Worker] Couldn't set marshal result: ", err.Error())
+							raven.CaptureError(err, nil)
 						} else { //successfully predicted, remove file
 							err = os.Remove(job.PredictionRequest.Filename)
 							if err != nil {
-								log.Debug("[Worker] Couldn't remove file ", err.Error())
+								log.Error("[Worker] Couldn't remove file ", err.Error())
+								raven.CaptureError(err, nil)
 							}
 						}
 					}
 				} else {
-					log.Debug("[Worker] Couln't predict: ", err.Error())
+					log.Error("[Worker] Couln't predict: ", err.Error())
+					raven.CaptureError(err, nil)
 				}
 
 			case <-w.quitChan:
