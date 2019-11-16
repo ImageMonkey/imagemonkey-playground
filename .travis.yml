@@ -8,13 +8,10 @@ before_install: |
   && curl -L https://github.com/docker/compose/releases/download/1.24.1/docker-compose-`uname -s`-`uname -m` -o /tmp/docker-compose \
   && sudo rm /usr/local/bin/docker-compose \
   && sudo mv /tmp/docker-compose /usr/local/bin/docker-compose \
-  && chmod +x /usr/local/bin/docker-compose 
+  && chmod +x /usr/local/bin/docker-compose \
+  && cd $TRAVIS_BUILD_DIR && docker-compose -f env/docker/docker-compose.travis.yml build
 
 jobs:
   include:
-    - stage: build
-      script: cd $TRAVIS_BUILD_DIR && docker build -t imagemonkey-grabcut -f env/docker/Dockerfile.grabcut .
-    - # stage name not required, will continue to use `build`
-      script: cd $TRAVIS_BUILD_DIR && docker build -t imagemonkey-predict -f env/docker/Dockerfile.predict .
-    - # stage name not required, will continue to use `build`
-      script: cd $TRAVIS_BUILD_DIR && docker build -t imagemonkey-playground-api -f env/docker/Dockerfile.playground-api .
+    - stage: test 
+      script: cd $TRAVIS_BUILD_DIR && docker-compose -f env/docker/docker-compose.travis.yml up --abort-on-container-exit --exit-code-from testing

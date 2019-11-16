@@ -32,4 +32,11 @@ services:
       - ../../tests/images:/home/imagemonkey-playground/donations
       - ../../predictions:/tmp/predictions
     env_file:
-        - ../docker/env.travis
+      - ../docker/env.travis
+  testing:
+    network_mode: host
+    build:
+      context: "../../"
+      dockerfile: env/docker/Dockerfile.testing
+    env_file:
+      - ../docker/env.travis

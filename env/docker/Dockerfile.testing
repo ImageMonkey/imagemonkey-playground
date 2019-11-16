@@ -1,0 +1,34 @@
+FROM golang:1.13-stretch
+
+ENV USE_SENTRY=false
+ENV SENTRY_DSN=
+ENV REDIS_ADDRESS=:6379
+ENV REDIS_PORT=6379
+
+RUN mkdir -p /home/go/bin
+ENV GOPATH=/home/go
+ENV GOBIN=/home/go/bin
+
+RUN mkdir -p /tmp/tests
+
+RUN wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh --directory-prefix=/usr/bin \
+	&& chmod u+rx /usr/bin/wait-for-it.sh
+
+COPY tests/tests.go /tmp/tests/tests.go
+COPY tests/api_test.go /tmp/tests/api_test.go
+COPY tests/helper.go /tmp/tests/helper.go
+COPY tests/go.mod /tmp/tests/go.mod
+COPY tests/go.sum /tmp/tests/go.sum
+COPY tests/images /tmp/tests/images
+
+COPY src/datastructures/go.mod /tmp/src/datastructures/go.mod
+COPY src/datastructures/datastructures.go /tmp/src/datastructures/datastructures.go
+
+COPY env/docker/run_tests.sh /tmp/tests/run_tests.sh
+
+RUN cd /tmp/tests \
+	&& go test -c -o test
+
+WORKDIR /tmp/tests/
+
+CMD [ "/tmp/tests/run_tests.sh" ]
