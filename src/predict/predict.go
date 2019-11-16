@@ -17,14 +17,14 @@ import (
     "github.com/garyburd/redigo/redis"
     "encoding/json"
     "time"
-	commons "github.com/bbernhard/imagemonkey-playground/commons"
+	datastructures "github.com/bbernhard/imagemonkey-playground/datastructures"
 )
 
  	
 
 type Predictor interface {
     Load(modelPath string, labelPath string) error
-    Predict(file multipart.File) (commons.TFResult, error)
+    Predict(file multipart.File) (datastructures.TFResult, error)
     Close()
 }
 
@@ -32,7 +32,7 @@ type TensorflowPredictor struct {
     labels []string
     graph *tf.Graph
     session *tf.Session
-    modelInfo commons.ModelInfo
+    modelInfo datastructures.ModelInfo
 }
 
 func NewTensorflowPredictor() *TensorflowPredictor {
@@ -47,7 +47,7 @@ func (p *TensorflowPredictor) Load(basePath string) error{
         return err
 	}
 
-	var modelInfo commons.ModelInfo
+	var modelInfo datastructures.ModelInfo
 	err = json.Unmarshal(modelInfoFile, &modelInfo)
 	if err != nil {
 		log.Debug("[Main] Couldn't parse model info: ", err.Error())
@@ -89,8 +89,8 @@ func (p *TensorflowPredictor) Load(basePath string) error{
 }
 
 
-func (p *TensorflowPredictor) Predict(file string) (commons.TFResult, error){
-	var res commons.TFResult
+func (p *TensorflowPredictor) Predict(file string) (datastructures.TFResult, error){
+	var res datastructures.TFResult
 	res.Label = "";
 	res.Score = 0;
 	// For multiple images, session.Run() can be called in a loop (and
@@ -150,8 +150,8 @@ func loadLabels(path string) ([]string, error){
 	return labels, nil
 }
 
-func getBestLabel(probabilities []float32, labels []string) commons.TFResult{
-	var result commons.TFResult
+func getBestLabel(probabilities []float32, labels []string) datastructures.TFResult{
+	var result datastructures.TFResult
 	bestIdx := 0
 	for i, p := range probabilities {
 		if p > probabilities[bestIdx] {
@@ -231,7 +231,6 @@ var redisPool *redis.Pool
 func main() {
 	log.SetLevel(log.DebugLevel)
 
-	log.Debug("[Main] Starting Playground Worker...")
 	redisAddress := flag.String("redis-address", ":6379", "Address to the Redis server")
 	redisMaxConnections := flag.Int("redis-max-connections", 10, "Max connections to Redis")
 	maxWorkerQueueSize := flag.Int("max-worker-queue-size", 100, "The size of job queue")
@@ -240,7 +239,8 @@ func main() {
 
 	flag.Parse()
 
-	log.Debug("[Main] Starting ThreadPool...")
+	log.Debug("[Main] Starting Playground Worker (Redis address: ", *redisAddress, ")")
+	log.Debug("[Main] Starting ThreadPool")
 
 	redisPool = redis.NewPool(func() (redis.Conn, error) {
 		c, err := redis.Dial("tcp", *redisAddress)
@@ -279,7 +279,7 @@ func main() {
 
     	log.Debug("[Main] Got a new request to process")
 
-    	var predictionRequest commons.PredictionRequest
+    	var predictionRequest datastructures.PredictionRequest
     	err = json.Unmarshal(data, &predictionRequest)
     	if err != nil{
     		log.Debug("[Main] Couldn't unmarshal: ", err.Error())

@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"os"
-	commons "github.com/bbernhard/imagemonkey-playground/commons"
+	datastructures "github.com/bbernhard/imagemonkey-playground/datastructures"
 )
 
 // Job holds the attributes needed to perform unit of work.
 type Job struct {
-	PredictionRequest commons.PredictionRequest
+	PredictionRequest datastructures.PredictionRequest
 }
 
 // NewWorker creates takes a numeric id and a channel w/ worker pool.
@@ -48,7 +48,7 @@ func (w Worker) start() {
 				if err == nil {
 					redisConn := redisPool.Get()
 
-					var predictionResult commons.PredictionResult
+					var predictionResult datastructures.PredictionResult
 					predictionResult.Uuid = job.PredictionRequest.Uuid
 					predictionResult.Result = tfResult
 					predictionResult.ModelInfo = predictor.modelInfo

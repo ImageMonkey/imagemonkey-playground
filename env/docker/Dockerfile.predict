@@ -1,8 +1,16 @@
 FROM golang:1.13-stretch
 
+ENV USE_SENTRY=false
+ENV SENTRY_DSN=
+ENV REDIS_ADDRESS=:6379
+ENV REDIS_PORT=6379
+
 RUN mkdir -p /home/go/bin
 ENV GOPATH=/home/go
 ENV GOBIN=/home/go/bin
+
+RUN wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh --directory-prefix=/usr/bin \
+	&& chmod u+rx /usr/bin/wait-for-it.sh
 
 RUN cd /tmp \ 
 	&& wget https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-1.14.0.tar.gz --directory-prefix=/tmp/ \
@@ -11,19 +19,23 @@ RUN cd /tmp \
 	&& ldconfig
 
 RUN mkdir -p /tmp/predict \
-	&& mkdir -p /tmp/commons
+	&& mkdir -p /tmp/commons \
+	&& mkdir -p /home/playground/bin/
 
 COPY src/predict/predict.go /tmp/predict/predict.go
 COPY src/predict/worker.go /tmp/predict/worker.go
 COPY src/predict/go.mod /tmp/predict/go.mod
 COPY src/predict/go.sum /tmp/predict/go.sum
 
-COPY src/commons/go.mod /tmp/commons/go.mod
-COPY src/commons/common.go /tmp/commons/common.go
+COPY src/datastructures/go.mod /tmp/datastructures/go.mod
+COPY src/datastructures/datastructures.go /tmp/datastructures/datastructures.go
+
+COPY env/docker/run_predict.sh /home/playground/bin/run_predict.sh 
 
 RUN cd /tmp/predict \
-	&& go install
+	&& go install \
+	&& cp /home/go/bin/predict /home/playground/bin/predict
 
+WORKDIR /home/playground/bin
 
-
-CMD [ "/home/imagemonkey/bin/predict" ]
+CMD [ "/home/playground/bin/run_predict.sh" ]

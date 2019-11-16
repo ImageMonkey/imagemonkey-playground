@@ -11,10 +11,25 @@ services:
       dockerfile: env/docker/Dockerfile.grabcut
     env_file:
         - ../docker/env.travis
+    volumes:
+      - ../../tests/images:/home/imagemonkey-playground/donations
+  predict:
+    network_mode: host
+    build:
+      context: "../../"
+      dockerfile: env/docker/Dockerfile.predict
+    env_file:
+      - ../docker/env.travis
+    volumes:
+      - ../../training:/home/playground/training
+      - ../../predictions:/tmp/predictions
   playground-api:
     network_mode: host
     build:
       context: "../../"
       dockerfile: env/docker/Dockerfile.playground-api
+    volumes:
+      - ../../tests/images:/home/imagemonkey-playground/donations
+      - ../../predictions:/tmp/predictions
     env_file:
         - ../docker/env.travis

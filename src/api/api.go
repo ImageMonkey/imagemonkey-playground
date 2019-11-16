@@ -15,34 +15,10 @@ import (
     "io"
 	"strconv"
     "github.com/yrsh/simplify-go"
-	commons "github.com/bbernhard/imagemonkey-playground/commons"
+	datastructures "github.com/bbernhard/imagemonkey-playground/datastructures"
 	"github.com/getsentry/raven-go"
 )
 
-
-
-type GrabcutRequest struct {
-	Uuid string `json:"uuid"`
-	Filename string `json:"filename"`
-	Mask []byte `json:"mask"`
-}
-
-type GrabcutResult struct {
-	Points [][]float64 `json:"points"`
-	Error string `json:"error"`
-}
-
-
-type GrabcutMeResultPoint struct {
-	X float32 `json:"x"`
-	Y float32 `json:"y"`
-}
-
-type GrabcutMeResult struct {
-	Points []GrabcutMeResultPoint `json:"points"`
-	Type string `json:"type"`
-	Angle float32 `json:"angle"`
-}
 
 func GetEnv(name string) string {
 	val, found := os.LookupEnv(name)
@@ -166,7 +142,7 @@ func main() {
 		defer redisConn.Close()
 
 		//add a prediction request to the REDIS 'predictme' queue
-		var predictionRequest commons.PredictionRequest		
+		var predictionRequest datastructures.PredictionRequest		
 		predictionRequest.Uuid = uuid
 		predictionRequest.Created = int64(time.Now().Unix())
 		predictionRequest.Filename = (*predictionsDir + uuid)
@@ -221,7 +197,7 @@ func main() {
 
 
 	    var data []byte
-	    var predictionResult commons.PredictionResult
+	    var predictionResult datastructures.PredictionResult
     	data, err = redis.Bytes(redisConn.Do("GET", key))
     	if err != nil{
     		log.Debug("[Predicting] Couldn't get status of request: ", err.Error())
@@ -253,8 +229,6 @@ func main() {
 			return
 		}
 
-		//c.SaveUploadedFile(header, (*predictionsDir + "test.png"))
-
 		imageUuid := c.PostForm("uuid")
 		if imageUuid == "" {
 			c.JSON(422, gin.H{"error": "Couldn't process request - parameters missing"})
@@ -274,7 +248,7 @@ func main() {
 		    return
 		}
 
-		var grabcutRequest GrabcutRequest		
+		var grabcutRequest datastructures.GrabcutRequest		
 		grabcutRequest.Filename = (*donationsDir + imageUuid)
 		grabcutRequest.Mask = buf.Bytes()
 		grabcutRequest.Uuid = u.String()
@@ -315,13 +289,13 @@ func main() {
 
 	    if(!ok) { //nothing available yet. Which means either the uuid is wrong or processing isn't finished. 
 	    		  //at this point we don't care for the reason.
-	    	c.JSON(200, gin.H{})
+			c.JSON(200, gin.H{})
 	    	return
 	    }
 
 
 	    var data []byte
-	    var grabcutResult GrabcutResult
+	    var grabcutResult datastructures.GrabcutResult
     	data, err = redis.Bytes(redisConn.Do("GET", key))
     	if err != nil{
     		log.Debug("[Grabcut] Couldn't get status of request: ", err.Error())
@@ -337,10 +311,10 @@ func main() {
     	}
 
     	//simplify polyline
-    	var grabcutMeResult GrabcutMeResult
+    	var grabcutMeResult datastructures.GrabcutMeResult
     	simplifiedDataPoints := simplifier.Simplify(grabcutResult.Points, 1.5, false)
     	for i,_ := range simplifiedDataPoints {
-    		var item GrabcutMeResultPoint
+    		var item datastructures.GrabcutMeResultPoint
     		item.X = float32(simplifiedDataPoints[i][0])
     		item.Y = float32(simplifiedDataPoints[i][1])
     		grabcutMeResult.Points = append(grabcutMeResult.Points, item)
@@ -351,7 +325,7 @@ func main() {
     	grabcutMeResult.Type = "polygon"
 
     	if grabcutResult.Error == "" {
-    		c.JSON(http.StatusOK, gin.H{"result": grabcutMeResult})
+			c.JSON(http.StatusOK, gin.H{"result": grabcutMeResult})
     	} else {
     		c.JSON(http.StatusOK, gin.H{"result": grabcutMeResult, "error": grabcutResult.Error})
     	}

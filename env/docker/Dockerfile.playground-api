@@ -8,21 +8,29 @@ RUN mkdir -p /home/go/bin
 ENV GOPATH=/home/go
 ENV GOBIN=/home/go/bin
 
+RUN wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh --directory-prefix=/usr/bin \
+	&& chmod u+rx /usr/bin/wait-for-it.sh
+
 RUN mkdir -p /tmp/api \
 	&& mkdir -p /tmp/commons \
-	&& mkdir -p /tmp/predictions
+	&& mkdir -p /tmp/predictions \
+	&& mkdir -p /tmp/datastructures \
+	&& mkdir -p /home/imagemonkey-playground/bin \
+	&& mkdir -p /home/imagemonkey-playground/donations
 
 COPY src/api/api.go /tmp/api/api.go
 COPY src/api/go.mod /tmp/api/go.mod
 COPY src/api/go.sum /tmp/api/go.sum
 
-COPY src/commons/go.mod /tmp/commons/go.mod
-COPY src/commons/common.go /tmp/commons/common.go
-COPY env/docker/run_playground-api.sh /tmp/run_playground-api.sh
+COPY env/docker/run_playground-api.sh /home/imagemonkey-playground/bin/run_playground-api.sh
+
+COPY src/datastructures/go.mod /tmp/datastructures/go.mod
+COPY src/datastructures/datastructures.go /tmp/datastructures/datastructures.go
 
 RUN cd /tmp/api \
-	&& go install api.go
+	&& go install api.go \
+	&& cp /home/go/bin/api /home/imagemonkey-playground/bin/api
 
-WORKDIR /home/go/bin
+WORKDIR /home/imagemonkey-playground/bin
 
-CMD [ "/tmp/run_playground-api.sh" ]
+CMD [ "/home/imagemonkey-playground/bin/run_playground-api.sh" ]

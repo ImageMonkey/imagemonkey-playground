@@ -9,17 +9,26 @@ import argparse
 import sys
 import os
 
+class GrabcutError(Exception):
+    pass
+
 def get_contours(filename, grabcut_mask):
     bgd_model = np.zeros((1,65),np.float64)
     fgd_model = np.zeros((1,65),np.float64)
 
+    if not os.path.exists(filename):
+        raise GrabcutError("Image %s doesn't exist!" %filename)
+
     img = cv.imread(filename)
+    if img is None:
+        raise GrabcutError("Couldn't read image from: " + filename)
+
 
     grabcut_mask_shape = grabcut_mask.shape[:2]
     img_shape = img.shape[:2]
 
     if((grabcut_mask_shape[0] > img_shape[0]) or (grabcut_mask_shape[1] > img_shape[1])):
-        return np.empty([0, 0]), "mask cannot be bigger than image!"
+        raise GrabcutError("Mask cannot be bigger than image!")
 
     old_img_size = img.shape[:2]
     img = cv.resize(img, (grabcut_mask.shape[:2][1], grabcut_mask.shape[:2][0]))
@@ -38,7 +47,7 @@ def get_contours(filename, grabcut_mask):
     cv.grabCut(img, mask, None, bgd_model, fgd_model, 5, cv.GC_INIT_WITH_MASK)
     mask2 = np.where((mask==1) + (mask==3),255,0).astype('uint8')
 
-    _, contours, _ = cv.findContours(mask2, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv.findContours(mask2, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
 
     #find the biggest area
     """cnt = contours[0]
@@ -62,7 +71,7 @@ def get_contours(filename, grabcut_mask):
             elem[0] = elem[0] * float(scale_x)
             elem[1] = elem[1] * float(scale_y)
 
-    return contours, None
+    return contours
 
 
 def is_maintenance(file_path):
@@ -97,7 +106,7 @@ if __name__ == "__main__":
 
     if not is_maintenance(args.maintenance_file):
         capture_message("Starting ImageMonkey Grabcut")
-        print("Starting ImageMonkey Grabcut")
+        print("Starting ImageMonkey Grabcut (Redis port: %d)" %args.redis_port)
 
         pool = redis.ConnectionPool(host='localhost', port=str(args.redis_port), db=0)
         r = redis.Redis(connection_pool=pool)
@@ -115,11 +124,11 @@ if __name__ == "__main__":
                 mask = cv.imdecode(arr, 0) 
             except Exception as e:
                 capture_exception()
-                err = "Couldn't decode image"
+                err = "Couldn't decode image mask"
 
             if err is None:
                 try:
-                    cont, err = get_contours(json_obj["filename"], mask)
+                    cont = get_contours(json_obj["filename"], mask)
                 except Exception as e:
                     capture_exception()
                     err = "Couldn't process request"
@@ -133,8 +142,7 @@ if __name__ == "__main__":
                 res["points"] = cont.tolist()
             else:
                 res["points"] = np.empty([0, 0]).tolist()
-                
-            r.setex(key, json.dumps(res), expire_in_secs)
+            r.setex(name=key, value=json.dumps(res), time=expire_in_secs)
     else:
         print("Starting ImageMonkey Grabcut (Maintenance Mode)")
         while True:
