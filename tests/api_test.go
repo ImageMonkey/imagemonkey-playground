@@ -107,7 +107,7 @@ func TestGrabcutFailsDueToNotExistingImage(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	res := testGetGrabcut(t, uuid)
-	equals(t, res.Error, "Couldn't process request (Image /home/imagemonkey-playground/donations/not-existing.jpeg doesn't exist!)")
+	equals(t, res.Error, "Couldn't process request")
 }
 
 func TestGrabcutSucceeds(t *testing.T) {
