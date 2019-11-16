@@ -28,7 +28,7 @@ COPY env/docker/run_tests.sh /tmp/tests/run_tests.sh
 
 RUN cd /tmp/tests \
 	&& go test -c -o test \
-	&& chmod u+rx /tmp/tests/run_tests.sh"
+	&& chmod u+rx /tmp/tests/run_tests.sh
 
 WORKDIR /tmp/tests/
 
