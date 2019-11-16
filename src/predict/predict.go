@@ -1,50 +1,48 @@
 package main
 
 import (
-    "bufio"
+	"bufio"
+	"encoding/json"
+	"flag"
 	"fmt"
+	datastructures "github.com/bbernhard/imagemonkey-playground/datastructures"
+	"github.com/disintegration/imaging"
+	"github.com/garyburd/redigo/redis"
+	log "github.com/sirupsen/logrus"
+	tf "github.com/tensorflow/tensorflow/tensorflow/go"
 	"image"
+	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
-	_ "image/gif"
 	"io/ioutil"
-	log "github.com/sirupsen/logrus"
+	"mime/multipart"
 	"os"
-    tf "github.com/tensorflow/tensorflow/tensorflow/go"
-    "mime/multipart"
-    "github.com/disintegration/imaging"
-    "flag"
-    "github.com/garyburd/redigo/redis"
-    "encoding/json"
-    "time"
-	datastructures "github.com/bbernhard/imagemonkey-playground/datastructures"
+	"time"
 )
 
- 	
-
 type Predictor interface {
-    Load(modelPath string, labelPath string) error
-    Predict(file multipart.File) (datastructures.TFResult, error)
-    Close()
+	Load(modelPath string, labelPath string) error
+	Predict(file multipart.File) (datastructures.TFResult, error)
+	Close()
 }
 
 type TensorflowPredictor struct {
-    labels []string
-    graph *tf.Graph
-    session *tf.Session
-    modelInfo datastructures.ModelInfo
+	labels    []string
+	graph     *tf.Graph
+	session   *tf.Session
+	modelInfo datastructures.ModelInfo
 }
 
 func NewTensorflowPredictor() *TensorflowPredictor {
-    return &TensorflowPredictor{} 
+	return &TensorflowPredictor{}
 }
 
-func (p *TensorflowPredictor) Load(basePath string) error{
+func (p *TensorflowPredictor) Load(basePath string) error {
 	//read model info file
 	modelInfoFile, err := ioutil.ReadFile((basePath + "model_info.json"))
-    if err != nil {
-        log.Debug("[Main] Couldn't read model info: ", err.Error())
-        return err
+	if err != nil {
+		log.Debug("[Main] Couldn't read model info: ", err.Error())
+		return err
 	}
 
 	var modelInfo datastructures.ModelInfo
@@ -55,7 +53,6 @@ func (p *TensorflowPredictor) Load(basePath string) error{
 	}
 	p.modelInfo = modelInfo
 
-
 	//read labels file
 	labels, err := loadLabels((basePath + "labels.txt"))
 	if err != nil {
@@ -64,7 +61,7 @@ func (p *TensorflowPredictor) Load(basePath string) error{
 	}
 	p.labels = labels
 
-    // Load the serialized GraphDef from a file.
+	// Load the serialized GraphDef from a file.
 	model, err := ioutil.ReadFile((basePath + "graph.pb"))
 	if err != nil {
 		log.Debug("[Main] Couldn't read model: ", err.Error())
@@ -88,11 +85,10 @@ func (p *TensorflowPredictor) Load(basePath string) error{
 	return nil
 }
 
-
-func (p *TensorflowPredictor) Predict(file string) (datastructures.TFResult, error){
+func (p *TensorflowPredictor) Predict(file string) (datastructures.TFResult, error) {
 	var res datastructures.TFResult
-	res.Label = "";
-	res.Score = 0;
+	res.Label = ""
+	res.Score = 0
 	// For multiple images, session.Run() can be called in a loop (and
 	// concurrently). Furthermore, images can be batched together since the
 	// model accepts batches of image data as input.
@@ -109,7 +105,6 @@ func (p *TensorflowPredictor) Predict(file string) (datastructures.TFResult, err
 		[]tf.Output{
 			//graph.Operation("output").Output(0),
 			p.graph.Operation("final_result").Output(0),
-			
 		},
 		nil)
 	if err != nil {
@@ -125,12 +120,11 @@ func (p *TensorflowPredictor) Predict(file string) (datastructures.TFResult, err
 	return res, nil
 }
 
-func (p *TensorflowPredictor) Close(){
+func (p *TensorflowPredictor) Close() {
 	p.session.Close()
 }
 
-
-func loadLabels(path string) ([]string, error){
+func loadLabels(path string) ([]string, error) {
 	var labels []string
 	file, err := os.Open(path)
 	if err != nil {
@@ -150,7 +144,7 @@ func loadLabels(path string) ([]string, error){
 	return labels, nil
 }
 
-func getBestLabel(probabilities []float32, labels []string) datastructures.TFResult{
+func getBestLabel(probabilities []float32, labels []string) datastructures.TFResult {
 	var result datastructures.TFResult
 	bestIdx := 0
 	for i, p := range probabilities {
@@ -163,15 +157,15 @@ func getBestLabel(probabilities []float32, labels []string) datastructures.TFRes
 	result.Label = labels[bestIdx]
 
 	return result
-} 
+}
 
 // Given an image, returns a Tensor which is suitable for
 // providing the image data to the pre-defined model.
 func makeTensorFromImage(file string) (*tf.Tensor, error) {
 	const (
-		// Some constants specific to the pre-trained model. 
+		// Some constants specific to the pre-trained model.
 		// - The model was trained with images scaled to 299x299 pixels.
-		// - Mean = 128 
+		// - Mean = 128
 		// - Std = 128
 		//
 		// All values taken from retrain.py
@@ -182,10 +176,10 @@ func makeTensorFromImage(file string) (*tf.Tensor, error) {
 	)
 
 	f, err := os.Open(file)
-    if err != nil {
-        panic(err.Error())
-    }
-    defer f.Close()
+	if err != nil {
+		panic(err.Error())
+	}
+	defer f.Close()
 
 	img, _, err := image.Decode(f)
 	if err != nil {
@@ -196,7 +190,7 @@ func makeTensorFromImage(file string) (*tf.Tensor, error) {
 	//the image resize library in use might be slow when larger images are used
 	//-> (see https://github.com/fawick/speedtest-resize for comparison)
 	//Consider using a different image resizing library (but in that case we probably
-	//need to write the image first to disk and read the resized image afterwards. 
+	//need to write the image first to disk and read the resized image afterwards.
 	//Is that faster?)
 	img = imaging.Resize(img, W, H, imaging.Box)
 
@@ -264,40 +258,38 @@ func main() {
 	nsfwDispatcher := NewDispatcher(nsfwJobQueue, *maxWorkersNSFW, "/home/playground/training/models/nsfw/")
 	nsfwDispatcher.run()
 
-
-	for{
+	for {
 		var data []byte
 
 		redisConn := redisPool.Get()
 
-    	data, err := redis.Bytes(redisConn.Do("LPOP", "predictme"))
-    	if err != nil {
-    		redisConn.Close()
-    		time.Sleep(time.Second) //nothing in queue, sleep for one sec
-    		continue
-    	}
-
-    	log.Debug("[Main] Got a new request to process")
-
-    	var predictionRequest datastructures.PredictionRequest
-    	err = json.Unmarshal(data, &predictionRequest)
-    	if err != nil{
-    		log.Debug("[Main] Couldn't unmarshal: ", err.Error())
-    		redisConn.Close()
+		data, err := redis.Bytes(redisConn.Do("LPOP", "predictme"))
+		if err != nil {
+			redisConn.Close()
+			time.Sleep(time.Second) //nothing in queue, sleep for one sec
 			continue
-    	}
+		}
 
-    	work := Job{PredictionRequest: predictionRequest}
-    	if predictionRequest.Type == "classification" {
-	    	jobQueue <- work
-	    } else if predictionRequest.Type == "nsfw-classification" {
-	    	nsfwJobQueue <- work
-	    } else {
-	    	log.Debug("[Main] Invalid classification type: ", predictionRequest.Type)
-	    }
+		log.Debug("[Main] Got a new request to process")
 
-    	redisConn.Close()
+		var predictionRequest datastructures.PredictionRequest
+		err = json.Unmarshal(data, &predictionRequest)
+		if err != nil {
+			log.Debug("[Main] Couldn't unmarshal: ", err.Error())
+			redisConn.Close()
+			continue
+		}
+
+		work := Job{PredictionRequest: predictionRequest}
+		if predictionRequest.Type == "classification" {
+			jobQueue <- work
+		} else if predictionRequest.Type == "nsfw-classification" {
+			nsfwJobQueue <- work
+		} else {
+			log.Debug("[Main] Invalid classification type: ", predictionRequest.Type)
+		}
+
+		redisConn.Close()
 	}
-
 
 }

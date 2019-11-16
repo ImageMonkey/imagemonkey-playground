@@ -2,9 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	datastructures "github.com/bbernhard/imagemonkey-playground/datastructures"
 	log "github.com/sirupsen/logrus"
 	"os"
-	datastructures "github.com/bbernhard/imagemonkey-playground/datastructures"
 )
 
 // Job holds the attributes needed to perform unit of work.
@@ -54,7 +54,7 @@ func (w Worker) start() {
 					predictionResult.ModelInfo = predictor.modelInfo
 
 					serialized, err := json.Marshal(predictionResult)
-					if err != nil{
+					if err != nil {
 						log.Debug("[Worker] Couldn't marshal prediction result: ", err.Error())
 					} else {
 						//store result with an expiration time of 1hr...it doesn't make sense to store it longer
@@ -72,8 +72,6 @@ func (w Worker) start() {
 				} else {
 					log.Debug("[Worker] Couln't predict: ", err.Error())
 				}
-
-				
 
 			case <-w.quitChan:
 				// We have been asked to stop.
@@ -98,15 +96,15 @@ func NewDispatcher(jobQueue chan Job, maxWorkers int, modelDir string) *Dispatch
 		jobQueue:   jobQueue,
 		maxWorkers: maxWorkers,
 		workerPool: workerPool,
-		modelDir: modelDir,
+		modelDir:   modelDir,
 	}
 }
 
 type Dispatcher struct {
 	workerPool chan chan Job
 	maxWorkers int
-	jobQueue chan Job
-	modelDir string
+	jobQueue   chan Job
+	modelDir   string
 }
 
 func (d *Dispatcher) run() {
@@ -131,4 +129,3 @@ func (d *Dispatcher) dispatch() {
 		}
 	}
 }
-
