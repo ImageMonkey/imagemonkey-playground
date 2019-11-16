@@ -29,7 +29,8 @@ COPY src/datastructures/datastructures.go /tmp/datastructures/datastructures.go
 
 RUN cd /tmp/api \
 	&& go install api.go \
-	&& cp /home/go/bin/api /home/imagemonkey-playground/bin/api
+	&& cp /home/go/bin/api /home/imagemonkey-playground/bin/api \
+	&& chmod u+rx /home/imagemonkey-playground/bin/run_playground-api.sh
 
 WORKDIR /home/imagemonkey-playground/bin
 

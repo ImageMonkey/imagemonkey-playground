@@ -18,4 +18,6 @@ RUN mkdir -p /tmp/grabcut
 COPY src/grabcut/grabcut.py /tmp/grabcut/grabcut.py
 COPY env/docker/run_grabcut.sh /tmp/run_grabcut.sh
 
+RUN chmod u+rx /tmp/run_grabcut.sh
+
 CMD [ "/tmp/run_grabcut.sh" ]

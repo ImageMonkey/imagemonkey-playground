@@ -34,7 +34,8 @@ COPY env/docker/run_predict.sh /home/playground/bin/run_predict.sh
 
 RUN cd /tmp/predict \
 	&& go install \
-	&& cp /home/go/bin/predict /home/playground/bin/predict
+	&& cp /home/go/bin/predict /home/playground/bin/predict \
+	&& chmod u+rx /home/playground/bin/run_predict.sh
 
 WORKDIR /home/playground/bin
 

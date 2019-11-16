@@ -27,7 +27,8 @@ COPY src/datastructures/datastructures.go /tmp/src/datastructures/datastructures
 COPY env/docker/run_tests.sh /tmp/tests/run_tests.sh
 
 RUN cd /tmp/tests \
-	&& go test -c -o test
+	&& go test -c -o test \
+	&& chmod u+rx /tmp/tests/run_tests.sh"
 
 WORKDIR /tmp/tests/
 
