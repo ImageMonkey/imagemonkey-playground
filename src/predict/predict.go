@@ -260,6 +260,8 @@ func main() {
 	maxWorkers := flag.Int("max-workers", 5, "The number of workers to start")
 	maxWorkersNSFW := flag.Int("max-workers-nsfw", 3, "The number of workers that operate on the NSFW model")
 	useSentry := flag.Bool("use_sentry", false, "Use Sentry for error logging")
+	modelsDir := flag.String("models-dir", "/home/playground/training/models/", "Models Directory")
+	nsfwModelsDir := flag.String("nsfw-models-dir", "/home/playground/training/models/nsfw/", "NSFW Models Directory")
 
 	flag.Parse()
 
@@ -288,12 +290,12 @@ func main() {
 	log.Debug("Starting Dispatcher")
 
 	jobQueue := make(chan Job, *maxWorkerQueueSize)
-	dispatcher := NewDispatcher(jobQueue, *maxWorkers, "/home/playground/training/models/")
+	dispatcher := NewDispatcher(jobQueue, *maxWorkers, *modelsDir)
 	dispatcher.run()
 
 	//NSFW job queue
 	nsfwJobQueue := make(chan Job, *maxWorkerQueueSize)
-	nsfwDispatcher := NewDispatcher(nsfwJobQueue, *maxWorkersNSFW, "/home/playground/training/models/nsfw/")
+	nsfwDispatcher := NewDispatcher(nsfwJobQueue, *maxWorkersNSFW, *nsfwModelsDir)
 	nsfwDispatcher.run()
 
 	for {
