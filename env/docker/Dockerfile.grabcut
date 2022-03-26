@@ -7,6 +7,7 @@ ENV REDIS_PORT=6379
 RUN wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh --directory-prefix=/usr/bin \
 	&& chmod u+rx /usr/bin/wait-for-it.sh
 
+RUN pip3 install --upgrade pip setuptools wheel
 RUN pip3 install redis opencv-python sentry-sdk 
 
 RUN apt-get update \
